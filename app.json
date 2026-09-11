@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "G-One Sarthi",
+    "slug": "g-one-sarthi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "androidNavigationBar": {
+      "backgroundColor": "#F9F6F0",
+      "barStyle": "dark-content"
+    },
+    "assetBundlePatterns": ["**/*"]
+  }
+}
