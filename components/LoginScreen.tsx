@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-export function LoginScreen() {
+export function LoginScreen({ onBack, onSignIn }: { onBack: () => void; onSignIn: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -11,7 +11,11 @@ export function LoginScreen() {
       Alert.alert('Details needed', 'Please enter your email and password.');
       return;
     }
-    Alert.alert('Signed in', 'Welcome back, caregiver.');
+    if (email.trim().toLowerCase() !== 'example@new.com' || password !== '123') {
+      Alert.alert('Incorrect details', 'Email or password is wrong. Please try again.');
+      return;
+    }
+    onSignIn();
   };
 
   return (
@@ -27,6 +31,14 @@ export function LoginScreen() {
         pointerEvents="none"
         style={styles.topShade}
       />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        onPress={onBack}
+        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+      >
+        <Text style={styles.backText}>‹ Back</Text>
+      </Pressable>
       <Text style={styles.heading}>Welcome{`\n`}Caregiver</Text>
 
       <View style={styles.formCard}>
@@ -89,6 +101,19 @@ const styles = StyleSheet.create({
     lineHeight: 82,
     position: 'absolute',
     top: 73,
+  },
+  backButton: {
+    left: 22,
+    position: 'absolute',
+    top: 22,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    zIndex: 10,
+  },
+  backText: {
+    color: '#FFFFFF',
+    fontFamily: 'Lora-Medium',
+    fontSize: 18,
   },
   formCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.85)',

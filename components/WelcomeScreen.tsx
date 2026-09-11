@@ -1,12 +1,19 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type WelcomeScreenProps = {
   name: string;
+  onContinue: () => void;
 };
 
-export function WelcomeScreen({ name }: WelcomeScreenProps) {
+export function WelcomeScreen({ name, onContinue }: WelcomeScreenProps) {
   return (
-    <View style={styles.container}>
+    <Pressable
+      accessibilityHint="Opens your home dashboard"
+      accessibilityLabel="Continue to home"
+      accessibilityRole="button"
+      onPress={onContinue}
+      style={styles.container}
+    >
       <Image
         accessibilityIgnoresInvertColors
         resizeMode="cover"
@@ -14,7 +21,7 @@ export function WelcomeScreen({ name }: WelcomeScreenProps) {
         style={styles.backgroundImage}
       />
       <Text style={styles.heading}>Welcome,{`\n`}{name || 'Amma'}</Text>
-    </View>
+    </Pressable>
   );
 }
 

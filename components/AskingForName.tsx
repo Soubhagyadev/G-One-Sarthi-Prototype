@@ -2,14 +2,23 @@ import { StyleSheet, Text, TextInput, Pressable, View } from 'react-native';
 
 type AskingForNameProps = {
   name: string;
+  onBack: () => void;
   onChangeName: (name: string) => void;
   onProceed: () => void;
 };
 
-export function AskingForName({ name, onChangeName, onProceed }: AskingForNameProps) {
+export function AskingForName({ name, onBack, onChangeName, onProceed }: AskingForNameProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.question}>What’s Your{`\n`}Name?</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        onPress={onBack}
+        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+      >
+        <Text style={styles.backText}>‹ Back</Text>
+      </Pressable>
+      <Text style={styles.question}>What's Your{`\n`}Name?</Text>
       <TextInput
         accessibilityLabel="Your name"
         onChangeText={onChangeName}
@@ -30,8 +39,18 @@ export function AskingForName({ name, onChangeName, onProceed }: AskingForNamePr
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 220,
+    marginTop: 160,
     paddingHorizontal: 14,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  backText: {
+    color: '#2E7359',
+    fontFamily: 'Lora-Medium',
+    fontSize: 18,
   },
   question: {
     color: '#000000',
