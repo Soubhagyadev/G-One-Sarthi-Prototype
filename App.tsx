@@ -215,7 +215,7 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="dark" />
       <View style={styles.screen}>
-        <PageFade key={screen} animate={screen !== 'name'} screenKey={screen}>
+        <PageFade screenKey={screen}>
           {screen === 'main' ? (
           <>
             <View style={styles.languageArea}>
@@ -313,31 +313,39 @@ export default function App() {
 }
 
 function PageFade({
-  animate,
   children,
   screenKey,
 }: {
-  animate: boolean;
   children: ReactNode;
   screenKey: string;
 }) {
-  const opacity = useRef(new Animated.Value(animate ? 0 : 1)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(18)).current;
 
   useEffect(() => {
-    if (!animate) {
-      opacity.setValue(1);
-      return;
-    }
     opacity.setValue(0);
-    Animated.timing(opacity, {
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
-  }, [animate, opacity, screenKey]);
+    translateY.setValue(18);
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [screenKey]);
 
-  return <Animated.View style={[styles.pageTransition, { opacity }]}>{children}</Animated.View>;
+  return (
+    <Animated.View style={[styles.pageTransition, { opacity, transform: [{ translateY }] }]}>
+      {children}
+    </Animated.View>
+  );
 }
 
 const styles = StyleSheet.create({
