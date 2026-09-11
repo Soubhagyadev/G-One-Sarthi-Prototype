@@ -39,37 +39,36 @@ export function LoginScreen({ onBack, onSignIn }: { onBack: () => void; onSignIn
       >
         <Text style={styles.backText}>‹ Back</Text>
       </Pressable>
-      <Text style={styles.heading}>Welcome{`\n`}Caregiver</Text>
-
-      <View style={styles.formCard}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          accessibilityLabel="Email"
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          onChangeText={setEmail}
-          style={styles.input}
-          value={email}
-        />
-
-        <Text style={styles.passwordLabel}>Password</Text>
-        <TextInput
-          accessibilityLabel="Password"
-          autoComplete="password"
-          onChangeText={setPassword}
-          secureTextEntry
-          style={styles.input}
-          value={password}
-        />
-
-        <Pressable
-          accessibilityRole="button"
-          onPress={signIn}
-          style={({ pressed }) => [styles.signInButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.signInText}>Sign In</Text>
-        </Pressable>
+      <View style={styles.content}>
+        <Text style={styles.heading}>Welcome{`\n`}Caregiver</Text>
+        <View style={styles.formCard}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            accessibilityLabel="Email"
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+            onChangeText={setEmail}
+            style={styles.input}
+            value={email}
+          />
+          <Text style={styles.passwordLabel}>Password</Text>
+          <TextInput
+            accessibilityLabel="Password"
+            autoComplete="password"
+            onChangeText={setPassword}
+            secureTextEntry
+            style={styles.input}
+            value={password}
+          />
+          <Pressable
+            accessibilityRole="button"
+            onPress={signIn}
+            style={({ pressed }) => [styles.signInButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.signInText}>Sign In</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -92,16 +91,6 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
   },
-  heading: {
-    color: '#FFFFFF',
-    fontFamily: 'Lora-Medium',
-    fontSize: 64,
-    left: 26,
-    letterSpacing: -2.5,
-    lineHeight: 82,
-    position: 'absolute',
-    top: 73,
-  },
   backButton: {
     left: 22,
     position: 'absolute',
@@ -115,16 +104,27 @@ const styles = StyleSheet.create({
     fontFamily: 'Lora-Medium',
     fontSize: 18,
   },
+  content: {
+    flex: 1,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 22,
+    paddingTop: 80,
+    paddingBottom: 30,
+  },
+  heading: {
+    color: '#FFFFFF',
+    fontFamily: 'Lora-Medium',
+    fontSize: 64,
+    letterSpacing: -2.5,
+    lineHeight: 82,
+    marginBottom: 24,
+  },
   formCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.85)',
     borderRadius: 24,
-    height: 416,
-    left: 22,
     paddingHorizontal: 20,
-    paddingTop: 40,
-    position: 'absolute',
-    right: 22,
-    top: 310,
+    paddingTop: 32,
+    paddingBottom: 30,
   },
   label: {
     color: '#333333',

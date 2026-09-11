@@ -18,29 +18,32 @@ export function AskingForName({ name, onBack, onChangeName, onProceed }: AskingF
       >
         <Text style={styles.backText}>‹ Back</Text>
       </Pressable>
-      <Text style={styles.question}>What's Your{`\n`}Name?</Text>
-      <TextInput
-        accessibilityLabel="Your name"
-        onChangeText={onChangeName}
-        selectTextOnFocus
-        style={styles.nameInput}
-        value={name}
-      />
-      <Pressable
-        accessibilityRole="button"
-        onPress={onProceed}
-        style={({ pressed }) => [styles.proceedButton, pressed && styles.pressed]}
-      >
-        <Text style={styles.proceedText}>Proceed</Text>
-      </Pressable>
+      <View style={styles.body}>
+        <Text style={styles.question}>What's Your{`\n`}Name?</Text>
+        <TextInput
+          accessibilityLabel="Your name"
+          onChangeText={onChangeName}
+          selectTextOnFocus
+          style={styles.nameInput}
+          value={name}
+        />
+        <Pressable
+          accessibilityRole="button"
+          onPress={onProceed}
+          style={({ pressed }) => [styles.proceedButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.proceedText}>Proceed</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 160,
+    flex: 1,
     paddingHorizontal: 14,
+    paddingTop: 28,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -51,6 +54,11 @@ const styles = StyleSheet.create({
     color: '#2E7359',
     fontFamily: 'Lora-Medium',
     fontSize: 18,
+  },
+  body: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingBottom: 60,
   },
   question: {
     color: '#000000',
