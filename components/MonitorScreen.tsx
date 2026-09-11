@@ -1,18 +1,9 @@
 import { useState } from 'react';
-import * as Notifications from 'expo-notifications';
-import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SvgUri } from 'react-native-svg';
 
 const uri = (source: number) => Image.resolveAssetSource(source).uri;
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
 
 function Icon({ source, size }: { source: number; size: number }) {
   return <SvgUri height={size} uri={uri(source)} width={size} />;
@@ -25,7 +16,7 @@ export const reminderIcons = {
 } as const;
 
 export type ReminderIcon = keyof typeof reminderIcons;
-export type Reminder = { id: string; icon: ReminderIcon; label: string; notificationId?: string; time: string };
+export type Reminder = { id: string; icon: ReminderIcon; label: string; time: string };
 
 export const initialReminders: Reminder[] = [
   { id: 'medicine', icon: 'medicine', label: 'Take Medicine', time: '8:00 PM' },
@@ -33,7 +24,13 @@ export const initialReminders: Reminder[] = [
   { id: 'walk', icon: 'walk', label: 'Short Walk', time: '5:00 PM' },
 ];
 
-const performance = ['Travel Rating', 'Match Pairs', 'Pack Your Bags', 'Watch The Tray', 'People Face'];
+const performance: { label: string; gameId: string }[] = [
+  { label: 'Travel Rating',  gameId: 'travelGame' },
+  { label: 'Match Pairs',    gameId: 'matchPairs' },
+  { label: 'Pack Your Bags', gameId: 'packYourBags' },
+  { label: 'Watch The Tray', gameId: 'watchTheTray' },
+  { label: 'People Face',    gameId: 'peopleFace' },
+];
 
 type MonitorScreenProps = {
   onGames: () => void;
@@ -41,10 +38,36 @@ type MonitorScreenProps = {
   onVoice: () => void;
   reminders: Reminder[];
   setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>;
+  gamesCompleted: Set<string>;
 };
 
-export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminders }: MonitorScreenProps) {
+export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminders, gamesCompleted }: MonitorScreenProps) {
   const [iconPickerId, setIconPickerId] = useState<string | null>(null);
+  const [timePickerId, setTimePickerId] = useState<string | null>(null);
+
+  // Convert "8:00 PM" → Date object (today's date with that time)
+  const timeStringToDate = (time: string): Date => {
+    const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    const date = new Date();
+    if (match) {
+      let hour = Number(match[1]);
+      const minute = Number(match[2]);
+      const isPM = match[3].toUpperCase() === 'PM';
+      if (isPM && hour !== 12) hour += 12;
+      if (!isPM && hour === 12) hour = 0;
+      date.setHours(hour, minute, 0, 0);
+    }
+    return date;
+  };
+
+  // Convert Date → "8:00 PM"
+  const dateToTimeString = (date: Date): string => {
+    let hour = date.getHours();
+    const minute = date.getMinutes();
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 || 12;
+    return `${hour}:${minute.toString().padStart(2, '0')} ${ampm}`;
+  };
 
   const updateReminder = (id: string, changes: Partial<Reminder>) => {
     setReminders((items) => items.map((item) => (item.id === id ? { ...item, ...changes } : item)));
@@ -54,28 +77,17 @@ export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminder
     setReminders((items) => [...items, { id: `${Date.now()}`, icon: 'medicine', label: 'New Reminder', time: '9:00 AM' }]);
   };
 
-  const scheduleReminder = async (reminder: Reminder) => {
-    const time = parseReminderTime(reminder.time);
-    if (!reminder.label.trim() || !time) {
-      Alert.alert('Check reminder', 'Enter a reminder and a time such as 8:00 PM.');
+  const deleteReminder = (id: string) => {
+    setReminders((items) => items.filter((item) => item.id !== id));
+  };
+
+  const saveReminder = (reminder: Reminder) => {
+    const valid = reminder.time.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!reminder.label.trim() || !valid) {
+      Alert.alert('Check reminder', 'Enter a label and a time such as 8:00 PM.');
       return;
     }
-    const permissions = await Notifications.requestPermissionsAsync();
-    if (permissions.status !== 'granted') {
-      Alert.alert('Notifications are off', 'Please allow notifications so G-One Sarthi can remind you.');
-      return;
-    }
-    if (reminder.notificationId) await Notifications.cancelScheduledNotificationAsync(reminder.notificationId);
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: { body: reminder.label, sound: 'default', title: 'G-One Sarthi Reminder' },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: time.hour,
-        minute: time.minute,
-      },
-    });
-    updateReminder(reminder.id, { notificationId });
-    Alert.alert('Reminder added', `${reminder.label} will appear at ${reminder.time}.`);
+    Alert.alert('Reminder saved', `${reminder.label} is set for ${reminder.time}.`);
   };
 
   return (
@@ -94,14 +106,24 @@ export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminder
                 style={styles.reminderLabel}
                 value={reminder.label}
               />
-              <TextInput
-                accessibilityLabel="Reminder time"
-                onChangeText={(time) => updateReminder(reminder.id, { time })}
-                style={styles.reminderTime}
-                value={reminder.time}
-              />
-              <Pressable accessibilityLabel="Save and schedule reminder" accessibilityRole="button" onPress={() => scheduleReminder(reminder)} style={styles.plusButton}>
+              <Pressable
+                accessibilityLabel="Set reminder time"
+                accessibilityRole="button"
+                onPress={() => setTimePickerId(reminder.id)}
+                style={({ pressed }) => [styles.timeButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.timeButtonText}>{reminder.time}</Text>
+              </Pressable>
+              <Pressable accessibilityLabel="Save reminder" accessibilityRole="button" onPress={() => saveReminder(reminder)} style={styles.plusButton}>
                 <Icon size={42} source={require('../SVG_Icons/Monitor_Section/Plus_Button_3.svg')} />
+              </Pressable>
+              <Pressable
+                accessibilityLabel="Delete reminder"
+                accessibilityRole="button"
+                onPress={() => deleteReminder(reminder.id)}
+                style={styles.deleteButton}
+              >
+                <Text style={styles.deleteText}>✕</Text>
               </Pressable>
             </View>
           ))}
@@ -111,19 +133,50 @@ export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminder
         </Pressable>
         <Text style={styles.example}>Example: Remember To Take Medicine at 10:00PM</Text>
 
+        {/* Native time picker — renders inline on Android, modal sheet on iOS */}
+        {timePickerId !== null && (
+          <DateTimePicker
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            is24Hour={false}
+            mode="time"
+            onChange={(_event: DateTimePickerEvent, date?: Date) => {
+              if (date) updateReminder(timePickerId, { time: dateToTimeString(date) });
+              if (Platform.OS === 'android') setTimePickerId(null);
+            }}
+            onTouchCancel={() => setTimePickerId(null)}
+            style={Platform.OS === 'ios' ? styles.iosPicker : undefined}
+            themeVariant="light"
+            value={timeStringToDate(reminders.find(r => r.id === timePickerId)?.time ?? '12:00 PM')}
+          />
+        )}
+        {Platform.OS === 'ios' && timePickerId !== null && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setTimePickerId(null)}
+            style={styles.iosPickerDone}
+          >
+            <Text style={styles.iosPickerDoneText}>Done</Text>
+          </Pressable>
+        )}
+
         <Text style={styles.analyticsHeading}>Analytics</Text>
         <View style={styles.analyticsCard}>
           <View style={styles.analyticsTitleRow}>
             <Icon size={38} source={require('../SVG_Icons/Monitor_Section/Controller.svg')} />
             <Text style={styles.analyticsTitle}>Game Performance</Text>
           </View>
-          {performance.map((game) => (
-            <View key={game} style={styles.performanceRow}>
-              <Text style={styles.performanceName}>{game}</Text>
-              <View style={styles.progressTrack}><View style={styles.progressFill} /></View>
-              <Text style={styles.percent}>100%</Text>
-            </View>
-          ))}
+          {performance.map(({ label, gameId }) => {
+            const done = gamesCompleted.has(gameId);
+            return (
+              <View key={gameId} style={styles.performanceRow}>
+                <Text style={styles.performanceName}>{label}</Text>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: done ? '100%' : '0%' }]} />
+                </View>
+                <Text style={styles.percent}>{done ? '100%' : '0%'}</Text>
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
 
@@ -161,15 +214,6 @@ export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminder
   );
 }
 
-function parseReminderTime(value: string) {
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return null;
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  if (hour < 1 || hour > 12 || minute > 59) return null;
-  return { hour: (hour % 12) + (match[3].toUpperCase() === 'PM' ? 12 : 0), minute };
-}
-
 function NavItem({ icon, label, onPress }: { icon: number; label: string; onPress?: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}>
@@ -187,8 +231,14 @@ const styles = StyleSheet.create({
   reminderCard: { alignItems: 'center', borderColor: 'rgba(0, 0, 0, 0.25)', borderRadius: 18, borderWidth: 1.5, flexDirection: 'row', height: 62, paddingHorizontal: 9 },
   iconButton: { alignItems: 'center', height: 46, justifyContent: 'center', width: 38 },
   reminderLabel: { color: '#000', flex: 1, fontFamily: 'Lora-Medium', fontSize: 15, marginLeft: 6, padding: 0 },
-  reminderTime: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 12, marginRight: 2, padding: 0, width: 66 },
   plusButton: { alignItems: 'center', height: 48, justifyContent: 'center', width: 40 },
+  timeButton: { alignItems: 'center', backgroundColor: '#E7EFE7', borderColor: '#2E7359', borderRadius: 10, borderWidth: 1, justifyContent: 'center', marginRight: 4, paddingHorizontal: 8, paddingVertical: 6 },
+  timeButtonText: { color: '#2E7359', fontFamily: 'Lora-Medium', fontSize: 13 },
+  iosPicker: { backgroundColor: '#F9F6F0', width: '100%' },
+  iosPickerDone: { alignItems: 'center', backgroundColor: '#2E7359', borderRadius: 10, marginHorizontal: 22, marginTop: 4, paddingVertical: 10 },
+  iosPickerDoneText: { color: '#FFF', fontFamily: 'Lora-Bold', fontSize: 16 },
+  deleteButton: { alignItems: 'center', height: 48, justifyContent: 'center', marginLeft: 2, width: 32 },
+  deleteText: { color: '#B85858', fontFamily: 'Lora-Medium', fontSize: 18 },
   addReminderButton: { alignItems: 'center', borderColor: '#2E7359', borderRadius: 12, borderWidth: 1, marginTop: 12, paddingVertical: 10 },
   addReminderText: { color: '#2E7359', fontFamily: 'Lora-Medium', fontSize: 16 },
   example: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 14, lineHeight: 19, marginTop: 16 },

@@ -40,7 +40,7 @@ type Phase = 'study' | 'quiz' | 'result';
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function PeopleFaceGame({ onExit }: { onExit: () => void }) {
+export function PeopleFaceGame({ onExit, onComplete }: { onExit: () => void; onComplete?: () => void }) {
   const [phase, setPhase] = useState<Phase>('study');
   const [countdown, setCountdown] = useState(STUDY_SECONDS);
   // Quiz state
@@ -129,6 +129,7 @@ export function PeopleFaceGame({ onExit }: { onExit: () => void }) {
     const next = () => {
       setSelected(null);
       if (quizIndex + 1 >= PEOPLE.length) {
+        onComplete?.();
         setPhase('result');
       } else {
         setQuizIndex((i) => i + 1);

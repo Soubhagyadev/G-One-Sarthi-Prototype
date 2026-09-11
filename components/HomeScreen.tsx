@@ -31,13 +31,18 @@ function getFormattedDate(): string {
   return `Today Is ${day} ${date}${suffix} ${month}`;
 }
 
-export function HomeScreen({ name, onGames, onMonitor, onVoice, onRandomGame, nextReminder }: {
+export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalReminders, onGames, onMonitor, onVoice, onRandomGame, nextReminder, onDismissReminder }: {
   name: string;
+  streak: number;
+  gamesCompleted: number;
+  remindersSet: number;
+  totalReminders: number;
   onGames: () => void;
   onMonitor: () => void;
   onVoice: () => void;
   onRandomGame: () => void;
-  nextReminder: { label: string; time: string; icon: 'medicine' | 'water' | 'walk' } | null;
+  nextReminder: { id: string; label: string; time: string; icon: 'medicine' | 'water' | 'walk' } | null;
+  onDismissReminder: (id: string) => void;
 }) {
   return (
     <View style={styles.container}>
@@ -47,7 +52,11 @@ export function HomeScreen({ name, onGames, onMonitor, onVoice, onRandomGame, ne
 
         <View style={styles.streakCard}>
           <HomeIcon size={34} source={require('../SVG_Icons/Home/Fire_Icon.svg')} />
-          <Text style={styles.streakText}>You Have Been Playing For 0 Days</Text>
+          <Text style={styles.streakText}>
+            {streak === 1
+              ? 'You Have Been Playing For 1 Day'
+              : `You Have Been Playing For ${streak} Days`}
+          </Text>
         </View>
 
         <View style={styles.performanceCard}>
@@ -56,13 +65,13 @@ export function HomeScreen({ name, onGames, onMonitor, onVoice, onRandomGame, ne
           <View style={styles.progressRow}>
             <PerformanceTile
               caption="Memory Games"
-              completed="4/5"
+              completed={`${gamesCompleted}/5`}
               icon={require('../SVG_Icons/Home/Brain_Svg.svg')}
               tint="#E7EFE7"
             />
             <PerformanceTile
-              caption="Daily Routine"
-              completed="5/6"
+              caption="Reminders Set"
+              completed={`${remindersSet}/${totalReminders}`}
               icon={require('../SVG_Icons/Home/Water_Drop.svg')}
               tint="#E2EFF4"
             />
@@ -99,9 +108,17 @@ export function HomeScreen({ name, onGames, onMonitor, onVoice, onRandomGame, ne
                 }
               />
               <Text style={styles.reminderText}>{nextReminder.time}  {nextReminder.label}</Text>
+              <Pressable
+                accessibilityLabel="Mark reminder as done"
+                accessibilityRole="checkbox"
+                onPress={() => onDismissReminder(nextReminder.id)}
+                style={({ pressed }) => [styles.checkBox, pressed && styles.pressed]}
+              >
+                <Text style={styles.checkMark}>✓</Text>
+              </Pressable>
             </View>
           ) : (
-            <Text style={styles.noReminderText}>No reminders set. Add one in Monitor.</Text>
+            <Text style={styles.noReminderText}>No upcoming reminders for today.</Text>
           )}
         </View>
       </ScrollView>
@@ -186,6 +203,7 @@ const styles = StyleSheet.create({
   },
   streakText: {
     color: '#000000',
+    flex: 1,
     fontFamily: 'Lora-Medium',
     fontSize: 19,
     marginLeft: 10,
@@ -297,9 +315,24 @@ const styles = StyleSheet.create({
   },
   reminderText: {
     color: '#000000',
+    flex: 1,
     fontFamily: 'Lora-Medium',
     fontSize: 19,
     marginLeft: 5,
+  },
+  checkBox: {
+    alignItems: 'center',
+    backgroundColor: '#2E7359',
+    borderRadius: 10,
+    height: 36,
+    justifyContent: 'center',
+    marginLeft: 8,
+    width: 36,
+  },
+  checkMark: {
+    color: '#FFFFFF',
+    fontFamily: 'Lora-Bold',
+    fontSize: 20,
   },
   noReminderText: {
     color: '#786F6F',

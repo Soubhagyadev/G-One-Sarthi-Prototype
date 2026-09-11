@@ -17,7 +17,7 @@ const images = {
 const order = ['boat', 'flower', 'bamboo', 'house', 'bird', 'basket', 'landscape', 'shawl', 'basket', 'landscape', 'house', 'bamboo', 'shawl', 'bird', 'boat', 'flower'] as const;
 const cards: Card[] = order.map((pair, index) => ({ id: `${pair}-${index}`, image: images[pair], pair }));
 
-export function MatchPairsGame({ onExit }: { onExit: () => void }) {
+export function MatchPairsGame({ onExit, onComplete }: { onExit: () => void; onComplete?: () => void }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [matched, setMatched] = useState<string[]>([]);
   const [moves, setMoves] = useState(0);
@@ -38,8 +38,10 @@ export function MatchPairsGame({ onExit }: { onExit: () => void }) {
     setMoves((value) => value + 1);
     const first = cards.find((item) => item.id === next[0]);
     if (first?.pair === card.pair) {
-      setMatched((value) => [...value, ...next]);
+      const newMatched = [...matched, ...next];
+      setMatched(newMatched);
       setSelected([]);
+      if (newMatched.length === cards.length) onComplete?.();
       return;
     }
     setLocked(true);

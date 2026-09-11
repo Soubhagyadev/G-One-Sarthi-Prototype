@@ -9,7 +9,12 @@
       "backgroundColor": "#F9F6F0",
       "barStyle": "dark-content"
     },
-    "plugins": ["expo-notifications"],
-    "assetBundlePatterns": ["**/*"]
+    "plugins": [
+      "expo-notifications",
+      "@react-native-community/datetimepicker"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ]
   }
 }

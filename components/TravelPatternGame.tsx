@@ -12,7 +12,7 @@ const rounds: Round[] = [
   { answer: 'Angry', image: require('../app_image/Games/Travel_Pattern/Angry.png'), options: ['Angry', 'Happy', 'Calm', 'Surprised'] },
 ];
 
-export function TravelPatternGame({ onExit }: { onExit: () => void }) {
+export function TravelPatternGame({ onExit, onComplete }: { onExit: () => void; onComplete?: () => void }) {
   const [roundIndex, setRoundIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [score, setScore] = useState(0);
@@ -59,7 +59,7 @@ export function TravelPatternGame({ onExit }: { onExit: () => void }) {
       {selected && (
         <View style={styles.feedback}>
           <Text style={[styles.feedbackText, correct ? styles.correctText : styles.incorrectText]}>{correct ? 'That’s right! Well done.' : `That is ${round.answer}. Let’s remember it.`}</Text>
-          <Pressable accessibilityRole="button" onPress={() => { setSelected(null); setRoundIndex((value) => value + 1); }} style={styles.primaryButton}><Text style={styles.primaryText}>{roundIndex + 1 === rounds.length ? 'See Result' : 'Next Person'}</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => { setSelected(null); const next = roundIndex + 1; if (next === rounds.length) onComplete?.(); setRoundIndex(next); }} style={styles.primaryButton}><Text style={styles.primaryText}>{roundIndex + 1 === rounds.length ? 'See Result' : 'Next Person'}</Text></Pressable>
         </View>
       )}
     </View>

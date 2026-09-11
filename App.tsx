@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { SvgUri } from 'react-native-svg';
@@ -37,10 +38,55 @@ export default function App() {
   const [language, setLanguage] = useState('English');
   const [name, setName] = useState('Amma');
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
+  const [streak, setStreak] = useState(0);
+  const [gamesCompleted, setGamesCompleted] = useState<Set<string>>(new Set());
+  const [dismissedReminders, setDismissedReminders] = useState<Set<string>>(new Set());
   const [fontsLoaded] = useFonts({
     'Lora-Medium': require('./fonts/Lora/static/Lora-Medium.ttf'),
     'Lora-Bold': require('./fonts/Lora/static/Lora-Bold.ttf'),
   });
+
+  // --- Streak logic ---
+  // Runs once on mount. Compares today's date to the last recorded date in storage.
+  // Same day → no change. Yesterday → increment. Older → reset to 1.
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+    AsyncStorage.multiGet(['streakCount', 'streakLastDate', 'gamesCompletedDate', 'gamesCompletedList', 'dismissedRemindersDate', 'dismissedRemindersList']).then(
+      ([[, savedCount], [, savedDate], [, gamesDate], [, gamesList], [, dismissDate], [, dismissList]]) => {
+        // ── Streak ──
+        const currentStreak = savedCount ? Number(savedCount) : 0;
+        if (!savedDate) {
+          AsyncStorage.multiSet([['streakCount', '1'], ['streakLastDate', today]]);
+          setStreak(1);
+        } else if (savedDate === today) {
+          setStreak(currentStreak);
+        } else {
+          const lastDate = new Date(savedDate);
+          const todayDate = new Date(today);
+          const diffDays = Math.round((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+          const newStreak = diffDays === 1 ? currentStreak + 1 : 1;
+          AsyncStorage.multiSet([['streakCount', String(newStreak)], ['streakLastDate', today]]);
+          setStreak(newStreak);
+        }
+
+        // ── Games completed today ──
+        if (gamesDate === today && gamesList) {
+          setGamesCompleted(new Set(JSON.parse(gamesList)));
+        } else {
+          AsyncStorage.multiSet([['gamesCompletedDate', today], ['gamesCompletedList', '[]']]);
+          setGamesCompleted(new Set());
+        }
+
+        // ── Dismissed reminders today ──
+        if (dismissDate === today && dismissList) {
+          setDismissedReminders(new Set(JSON.parse(dismissList)));
+        } else {
+          AsyncStorage.multiSet([['dismissedRemindersDate', today], ['dismissedRemindersList', '[]']]);
+          setDismissedReminders(new Set());
+        }
+      }
+    );
+  }, []);
 
   if (!fontsLoaded) return null;
 
@@ -56,23 +102,44 @@ export default function App() {
     return hour * 60 + minute;
   };
 
-  // Find the next upcoming reminder (closest to current time, wrapping to tomorrow if needed)
+  // Find the next upcoming reminder strictly in the future from current time.
+  // Returns null if all reminders for today have already passed.
   const getNextReminder = (): Reminder | null => {
     if (reminders.length === 0) return null;
     const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
     const sorted = [...reminders]
-      .filter(r => r.label.trim())
+      .filter(r => r.label.trim() && !dismissedReminders.has(r.id))
       .sort((a, b) => parseMinutes(a.time) - parseMinutes(b.time));
-    // Find first reminder still upcoming today
-    const upcoming = sorted.find(r => parseMinutes(r.time) > nowMinutes);
-    // If none left today, wrap to earliest tomorrow
-    return upcoming ?? sorted[0] ?? null;
+    // Only return a reminder that is strictly in the future
+    return sorted.find(r => parseMinutes(r.time) > nowMinutes) ?? null;
+  };
+
+  const dismissReminder = (id: string) => {
+    setDismissedReminders((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      const today = new Date().toISOString().slice(0, 10);
+      AsyncStorage.multiSet([['dismissedRemindersDate', today], ['dismissedRemindersList', JSON.stringify([...next])]]);
+      return next;
+    });
   };
 
   const gameScreens = ['travelGame', 'matchPairs', 'packYourBags', 'watchTheTray', 'peopleFace'] as const;
   const launchRandomGame = () => {
     const pick = gameScreens[Math.floor(Math.random() * gameScreens.length)];
     setScreen(pick);
+  };
+
+  const markGameComplete = (gameId: string) => {
+    setGamesCompleted((prev) => {
+      if (prev.has(gameId)) return prev;
+      const next = new Set(prev);
+      next.add(gameId);
+      const today = new Date().toISOString().slice(0, 10);
+      AsyncStorage.multiSet([['gamesCompletedDate', today], ['gamesCompletedList', JSON.stringify([...next])]]);
+      return next;
+    });
   };
 
   const chooseRole = (role: 'patient' | 'caregiver') => {
@@ -169,15 +236,15 @@ export default function App() {
           ) : screen === 'welcome' ? (
           <WelcomeScreen name={name} onContinue={() => setScreen('home')} />
           ) : (
-          screen === 'home' ? <HomeScreen name={name} onGames={() => setScreen('games')} onMonitor={() => setScreen('monitor')} onVoice={() => setScreen('voice')} onRandomGame={launchRandomGame} nextReminder={getNextReminder()} /> :
+          screen === 'home' ? <HomeScreen name={name} streak={streak} gamesCompleted={gamesCompleted.size} remindersSet={reminders.filter(r => r.label.trim()).length} totalReminders={reminders.length} onGames={() => setScreen('games')} onMonitor={() => setScreen('monitor')} onVoice={() => setScreen('voice')} onRandomGame={launchRandomGame} nextReminder={getNextReminder()} onDismissReminder={dismissReminder} /> :
           screen === 'games' ? <GamesScreen onHome={() => setScreen('home')} onMatchPairs={() => setScreen('matchPairs')} onMonitor={() => setScreen('monitor')} onPackYourBags={() => setScreen('packYourBags')} onTravelPattern={() => setScreen('travelGame')} onVoice={() => setScreen('voice')} onWatchTheTray={() => setScreen('watchTheTray')} onPeopleFace={() => setScreen('peopleFace')} /> :
           screen === 'voice' ? <VoiceScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onMonitor={() => setScreen('monitor')} /> :
-          screen === 'monitor' ? <MonitorScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onVoice={() => setScreen('voice')} reminders={reminders} setReminders={setReminders} /> :
-          screen === 'travelGame' ? <TravelPatternGame onExit={() => setScreen('games')} /> :
-          screen === 'matchPairs' ? <MatchPairsGame onExit={() => setScreen('games')} /> :
-          screen === 'packYourBags' ? <PackYourBagsGame onExit={() => setScreen('games')} /> :
-          screen === 'watchTheTray' ? <WatchTheTrayGame onExit={() => setScreen('games')} /> :
-          screen === 'peopleFace' ? <PeopleFaceGame onExit={() => setScreen('games')} /> :
+          screen === 'monitor' ? <MonitorScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onVoice={() => setScreen('voice')} reminders={reminders} setReminders={setReminders} gamesCompleted={gamesCompleted} /> :
+          screen === 'travelGame' ? <TravelPatternGame onExit={() => setScreen('games')} onComplete={() => markGameComplete('travelGame')} /> :
+          screen === 'matchPairs' ? <MatchPairsGame onExit={() => setScreen('games')} onComplete={() => markGameComplete('matchPairs')} /> :
+          screen === 'packYourBags' ? <PackYourBagsGame onExit={() => setScreen('games')} onComplete={() => markGameComplete('packYourBags')} /> :
+          screen === 'watchTheTray' ? <WatchTheTrayGame onExit={() => setScreen('games')} onComplete={() => markGameComplete('watchTheTray')} /> :
+          screen === 'peopleFace' ? <PeopleFaceGame onExit={() => setScreen('games')} onComplete={() => markGameComplete('peopleFace')} /> :
           <LoginScreen onBack={() => setScreen('main')} onSignIn={() => setScreen('monitor')} />
           )}
         </PageFade>

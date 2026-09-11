@@ -69,7 +69,7 @@ type Phase = 'level-select' | 'memorise' | 'recall' | 'result';
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function WatchTheTrayGame({ onExit }: { onExit: () => void }) {
+export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; onComplete?: () => void }) {
   const [phase, setPhase] = useState<Phase>('level-select');
   const [levelIndex, setLevelIndex] = useState(0);
   const [trayKeys, setTrayKeys] = useState<ItemKey[]>([]);
@@ -116,6 +116,7 @@ export function WatchTheTrayGame({ onExit }: { onExit: () => void }) {
     const correct = trayKeys.filter((k) => selected.includes(k)).length;
     const wrong = selected.filter((k) => !trayKeys.includes(k)).length;
     setScore(Math.max(0, correct - wrong));
+    onComplete?.();
     setPhase('result');
   };
 
