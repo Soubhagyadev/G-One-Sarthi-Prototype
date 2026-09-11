@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SvgUri } from 'react-native-svg';
 
@@ -15,26 +14,35 @@ type VoiceScreenProps = {
 };
 
 export function VoiceScreen({ onGames, onHome, onMonitor }: VoiceScreenProps) {
-  const [listening, setListening] = useState(false);
-
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>Ask Anything</Text>
+      <Text style={styles.heading}>Voice{'\n'}Assistant</Text>
+
+      <View style={styles.comingSoonBadge}>
+        <Text style={styles.comingSoonText}>Coming Soon</Text>
+      </View>
+
       <Image
         accessibilityIgnoresInvertColors
         resizeMode="cover"
         source={require('../app_image/Voice_Page/Mic_Image.png')}
         style={styles.voiceImage}
       />
-      <Pressable
-        accessibilityLabel={listening ? 'Stop listening' : 'Tap to speak'}
-        accessibilityRole="button"
-        onPress={() => setListening((value) => !value)}
-        style={({ pressed }) => [styles.speakButton, listening && styles.listeningButton, pressed && styles.pressed]}
-      >
-        <Icon size={48} source={require('../SVG_Icons/Voice/Mic.svg')} />
-        <Text style={styles.speakText}>{listening ? 'Listening...' : 'Tap To Speak'}</Text>
-      </Pressable>
+
+      <View style={styles.infoCard}>
+        <Text style={styles.infoTitle}>AI Voice Chat</Text>
+        <Text style={styles.infoBody}>
+          Talk to G-One Sarthi in your own language. Ask about medicines, get reminders read aloud, or just have a conversation.
+        </Text>
+        <View style={styles.featureList}>
+          {['Multilingual support (Assamese, Hindi, Bodo)', 'Reads reminders aloud', 'Answers health questions', 'Works offline'].map((f) => (
+            <View key={f} style={styles.featureRow}>
+              <Text style={styles.featureDot}>·</Text>
+              <Text style={styles.featureText}>{f}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
 
       <View style={styles.navigationBar}>
         <NavItem icon={require('../SVG_Icons/Home/Home.svg')} label="Home" onPress={onHome} />
@@ -61,48 +69,62 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9F6F0',
     left: -27,
     right: -27,
+    paddingHorizontal: 22,
   },
   heading: {
     color: '#000000',
     fontFamily: 'Lora-Medium',
     fontSize: 48,
-    left: 27,
     letterSpacing: -1.8,
-    lineHeight: 61,
-    position: 'absolute',
-    top: 34,
+    lineHeight: 56,
+    marginTop: 34,
+  },
+  comingSoonBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFE2CA',
+    borderColor: 'rgba(0,0,0,0.15)',
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+  },
+  comingSoonText: {
+    color: '#C47A2B',
+    fontFamily: 'Lora-Bold',
+    fontSize: 14,
   },
   voiceImage: {
+    alignSelf: 'center',
     borderRadius: 24,
-    height: 260,
-    left: 70,
-    position: 'absolute',
-    top: 250,
-    width: 260,
+    height: 200,
+    marginTop: 24,
+    width: 200,
   },
-  speakButton: {
-    alignItems: 'center',
-    backgroundColor: '#2E7359',
-    borderColor: '#A18686',
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    height: 70,
-    justifyContent: 'center',
-    left: 35,
-    position: 'absolute',
-    top: 550,
-    width: 320,
+  infoCard: {
+    borderColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 25,
+    borderWidth: 2,
+    marginTop: 24,
+    padding: 20,
   },
-  listeningButton: {
-    backgroundColor: '#245D48',
-  },
-  speakText: {
-    color: '#FFFFFF',
+  infoTitle: {
+    color: '#000',
     fontFamily: 'Lora-Medium',
-    fontSize: 20,
-    marginLeft: 10,
+    fontSize: 22,
+    marginBottom: 8,
   },
+  infoBody: {
+    color: '#786F6F',
+    fontFamily: 'Lora-Medium',
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 14,
+  },
+  featureList: { gap: 6 },
+  featureRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  featureDot: { color: '#2E7359', fontFamily: 'Lora-Bold', fontSize: 20, lineHeight: 22, marginRight: 8 },
+  featureText: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 15, flex: 1, lineHeight: 22 },
   navigationBar: {
     alignItems: 'center',
     backgroundColor: '#2E7359',

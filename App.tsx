@@ -41,6 +41,10 @@ export default function App() {
   const [streak, setStreak] = useState(0);
   const [gamesCompleted, setGamesCompleted] = useState<Set<string>>(new Set());
   const [dismissedReminders, setDismissedReminders] = useState<Set<string>>(new Set());
+  const [lastActive, setLastActive] = useState<string>('');
+  // weeklyHistory: array of 7 entries, index 0 = 6 days ago, index 6 = today
+  // each entry: { date: 'YYYY-MM-DD', count: number }
+  const [weeklyHistory, setWeeklyHistory] = useState<{ date: string; count: number }[]>([]);
   const [fontsLoaded] = useFonts({
     'Lora-Medium': require('./fonts/Lora/static/Lora-Medium.ttf'),
     'Lora-Bold': require('./fonts/Lora/static/Lora-Bold.ttf'),
@@ -51,41 +55,81 @@ export default function App() {
   // Same day → no change. Yesterday → increment. Older → reset to 1.
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-    AsyncStorage.multiGet(['streakCount', 'streakLastDate', 'gamesCompletedDate', 'gamesCompletedList', 'dismissedRemindersDate', 'dismissedRemindersList']).then(
-      ([[, savedCount], [, savedDate], [, gamesDate], [, gamesList], [, dismissDate], [, dismissList]]) => {
-        // ── Streak ──
-        const currentStreak = savedCount ? Number(savedCount) : 0;
-        if (!savedDate) {
-          AsyncStorage.multiSet([['streakCount', '1'], ['streakLastDate', today]]);
-          setStreak(1);
-        } else if (savedDate === today) {
-          setStreak(currentStreak);
-        } else {
-          const lastDate = new Date(savedDate);
-          const todayDate = new Date(today);
-          const diffDays = Math.round((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-          const newStreak = diffDays === 1 ? currentStreak + 1 : 1;
-          AsyncStorage.multiSet([['streakCount', String(newStreak)], ['streakLastDate', today]]);
-          setStreak(newStreak);
-        }
 
-        // ── Games completed today ──
-        if (gamesDate === today && gamesList) {
-          setGamesCompleted(new Set(JSON.parse(gamesList)));
-        } else {
-          AsyncStorage.multiSet([['gamesCompletedDate', today], ['gamesCompletedList', '[]']]);
-          setGamesCompleted(new Set());
-        }
-
-        // ── Dismissed reminders today ──
-        if (dismissDate === today && dismissList) {
-          setDismissedReminders(new Set(JSON.parse(dismissList)));
-        } else {
-          AsyncStorage.multiSet([['dismissedRemindersDate', today], ['dismissedRemindersList', '[]']]);
-          setDismissedReminders(new Set());
-        }
+    // Build the 7-day window (6 days ago → today)
+    const buildWeek = (historyMap: Record<string, number>) => {
+      const week: { date: string; count: number }[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        week.push({ date: key, count: historyMap[key] ?? 0 });
       }
-    );
+      return week;
+    };
+
+    AsyncStorage.multiGet([
+      'streakCount', 'streakLastDate',
+      'gamesCompletedDate', 'gamesCompletedList',
+      'dismissedRemindersDate', 'dismissedRemindersList',
+      'lastActive', 'weeklyHistory',
+    ]).then(([[, savedCount], [, savedDate], [, gamesDate], [, gamesList], [, dismissDate], [, dismissList], [, savedLastActive], [, savedWeekly]]) => {
+
+      // ── Streak ──
+      const currentStreak = savedCount ? Number(savedCount) : 0;
+      if (!savedDate) {
+        AsyncStorage.multiSet([['streakCount', '1'], ['streakLastDate', today]]);
+        setStreak(1);
+      } else if (savedDate === today) {
+        setStreak(currentStreak);
+      } else {
+        const lastDate = new Date(savedDate);
+        const todayDate = new Date(today);
+        const diffDays = Math.round((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+        const newStreak = diffDays === 1 ? currentStreak + 1 : 1;
+        AsyncStorage.multiSet([['streakCount', String(newStreak)], ['streakLastDate', today]]);
+        setStreak(newStreak);
+      }
+
+      // ── Games completed today ──
+      if (gamesDate === today && gamesList) {
+        setGamesCompleted(new Set(JSON.parse(gamesList)));
+      } else {
+        AsyncStorage.multiSet([['gamesCompletedDate', today], ['gamesCompletedList', '[]']]);
+        setGamesCompleted(new Set());
+      }
+
+      // ── Dismissed reminders today ──
+      if (dismissDate === today && dismissList) {
+        setDismissedReminders(new Set(JSON.parse(dismissList)));
+      } else {
+        AsyncStorage.multiSet([['dismissedRemindersDate', today], ['dismissedRemindersList', '[]']]);
+        setDismissedReminders(new Set());
+      }
+
+      // ── Last active ──
+      const now = new Date();
+      const hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const h12 = (hours % 12 || 12);
+      const timeStr = `${h12}:${minutes} ${ampm}`;
+      const activeStr = `Today at ${timeStr}`;
+      setLastActive(activeStr);
+      AsyncStorage.setItem('lastActive', activeStr);
+
+      // ── Weekly history ──
+      const historyMap: Record<string, number> = savedWeekly ? JSON.parse(savedWeekly) : {};
+      // Today's count comes from gamesCompleted (resolved above)
+      const todayCount = gamesDate === today && gamesList ? JSON.parse(gamesList).length : 0;
+      historyMap[today] = todayCount;
+      // Trim keys older than 7 days to keep storage clean
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 7);
+      Object.keys(historyMap).forEach(k => { if (new Date(k) < cutoff) delete historyMap[k]; });
+      AsyncStorage.setItem('weeklyHistory', JSON.stringify(historyMap));
+      setWeeklyHistory(buildWeek(historyMap));
+    });
   }, []);
 
   if (!fontsLoaded) return null;
@@ -138,6 +182,21 @@ export default function App() {
       next.add(gameId);
       const today = new Date().toISOString().slice(0, 10);
       AsyncStorage.multiSet([['gamesCompletedDate', today], ['gamesCompletedList', JSON.stringify([...next])]]);
+      // Update weekly history with new count
+      AsyncStorage.getItem('weeklyHistory').then(saved => {
+        const map: Record<string, number> = saved ? JSON.parse(saved) : {};
+        map[today] = next.size;
+        AsyncStorage.setItem('weeklyHistory', JSON.stringify(map));
+        // Rebuild the 7-day window
+        const week: { date: string; count: number }[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const key = d.toISOString().slice(0, 10);
+          week.push({ date: key, count: map[key] ?? 0 });
+        }
+        setWeeklyHistory(week);
+      });
       return next;
     });
   };
@@ -239,7 +298,7 @@ export default function App() {
           screen === 'home' ? <HomeScreen name={name} streak={streak} gamesCompleted={gamesCompleted.size} remindersSet={reminders.filter(r => r.label.trim()).length} totalReminders={reminders.length} onGames={() => setScreen('games')} onMonitor={() => setScreen('monitor')} onVoice={() => setScreen('voice')} onRandomGame={launchRandomGame} nextReminder={getNextReminder()} onDismissReminder={dismissReminder} /> :
           screen === 'games' ? <GamesScreen onHome={() => setScreen('home')} onMatchPairs={() => setScreen('matchPairs')} onMonitor={() => setScreen('monitor')} onPackYourBags={() => setScreen('packYourBags')} onTravelPattern={() => setScreen('travelGame')} onVoice={() => setScreen('voice')} onWatchTheTray={() => setScreen('watchTheTray')} onPeopleFace={() => setScreen('peopleFace')} /> :
           screen === 'voice' ? <VoiceScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onMonitor={() => setScreen('monitor')} /> :
-          screen === 'monitor' ? <MonitorScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onVoice={() => setScreen('voice')} reminders={reminders} setReminders={setReminders} gamesCompleted={gamesCompleted} /> :
+          screen === 'monitor' ? <MonitorScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onVoice={() => setScreen('voice')} reminders={reminders} setReminders={setReminders} gamesCompleted={gamesCompleted} streak={streak} lastActive={lastActive} weeklyHistory={weeklyHistory} remindersTotal={reminders.length} remindersDone={dismissedReminders.size} /> :
           screen === 'travelGame' ? <TravelPatternGame onExit={() => setScreen('games')} onComplete={() => markGameComplete('travelGame')} /> :
           screen === 'matchPairs' ? <MatchPairsGame onExit={() => setScreen('games')} onComplete={() => markGameComplete('matchPairs')} /> :
           screen === 'packYourBags' ? <PackYourBagsGame onExit={() => setScreen('games')} onComplete={() => markGameComplete('packYourBags')} /> :

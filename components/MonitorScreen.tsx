@@ -39,9 +39,14 @@ type MonitorScreenProps = {
   reminders: Reminder[];
   setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>;
   gamesCompleted: Set<string>;
+  streak: number;
+  lastActive: string;
+  weeklyHistory: { date: string; count: number }[];
+  remindersTotal: number;
+  remindersDone: number;
 };
 
-export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminders, gamesCompleted }: MonitorScreenProps) {
+export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminders, gamesCompleted, streak, lastActive, weeklyHistory, remindersTotal, remindersDone }: MonitorScreenProps) {
   const [iconPickerId, setIconPickerId] = useState<string | null>(null);
   const [timePickerId, setTimePickerId] = useState<string | null>(null);
 
@@ -160,6 +165,96 @@ export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminder
         )}
 
         <Text style={styles.analyticsHeading}>Analytics</Text>
+
+        {/* ── Card 1: Today's Summary ── */}
+        <View style={styles.analyticsCard}>
+          <Text style={styles.cardTitle}>Today's Summary</Text>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryBlock}>
+              <View style={styles.bigCircle}>
+                <Text style={styles.bigCircleNumber}>{gamesCompleted.size}</Text>
+                <Text style={styles.bigCircleOf}>/5</Text>
+              </View>
+              <Text style={styles.summaryLabel}>Games{'\n'}Played</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryBlock}>
+              <View style={[styles.bigCircle, styles.bigCircleOrange]}>
+                <Text style={styles.bigCircleNumber}>{streak}</Text>
+              </View>
+              <Text style={styles.summaryLabel}>Day{'\n'}Streak</Text>
+            </View>
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryBlock}>
+              <View style={[styles.bigCircle, styles.bigCircleBlue]}>
+                <Text style={styles.bigCircleNumber}>{remindersDone}</Text>
+                <Text style={styles.bigCircleOf}>/{remindersTotal}</Text>
+              </View>
+              <Text style={styles.summaryLabel}>Reminders{'\n'}Done</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Card 2: Last Active ── */}
+        <View style={[styles.analyticsCard, styles.lastActiveCard]}>
+          <View style={styles.lastActiveRow}>
+            <View>
+              <Text style={styles.cardTitle}>Last Active</Text>
+              <Text style={styles.lastActiveValue}>{lastActive || 'Just now'}</Text>
+            </View>
+            <View style={styles.activeDot} />
+          </View>
+        </View>
+
+        {/* ── Card 3: Reminders Status ── */}
+        <View style={styles.analyticsCard}>
+          <Text style={styles.cardTitle}>Reminders Today</Text>
+          <View style={styles.reminderStatusRow}>
+            <Text style={styles.reminderStatusFraction}>
+              {remindersDone}<Text style={styles.reminderStatusTotal}>/{remindersTotal}</Text>
+            </Text>
+            <Text style={styles.reminderStatusLabel}>
+              {remindersDone === remindersTotal && remindersTotal > 0
+                ? 'All done! Great job.'
+                : remindersDone === 0
+                ? 'None completed yet'
+                : `${remindersTotal - remindersDone} remaining`}
+            </Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, {
+              width: remindersTotal > 0 ? `${Math.round((remindersDone / remindersTotal) * 100)}%` : '0%'
+            }]} />
+          </View>
+        </View>
+
+        {/* ── Card 4: 7-Day Game History ── */}
+        <View style={styles.analyticsCard}>
+          <Text style={styles.cardTitle}>7-Day Activity</Text>
+          <Text style={styles.cardSubtitle}>Games played per day</Text>
+          <View style={styles.chartRow}>
+            {weeklyHistory.map((day, i) => {
+              const isToday = i === 6;
+              const barHeight = day.count === 0 ? 6 : Math.max(20, (day.count / 5) * 80);
+              const dayLabel = new Date(day.date + 'T00:00:00').toLocaleDateString('en', { weekday: 'short' }).slice(0, 1);
+              return (
+                <View key={day.date} style={styles.chartColumn}>
+                  <Text style={styles.chartCount}>{day.count > 0 ? day.count : ''}</Text>
+                  <View style={styles.chartBarWrapper}>
+                    <View style={[
+                      styles.chartBar,
+                      { height: barHeight },
+                      isToday ? styles.chartBarToday : day.count > 0 ? styles.chartBarDone : styles.chartBarEmpty,
+                    ]} />
+                  </View>
+                  <Text style={[styles.chartDay, isToday && styles.chartDayToday]}>{isToday ? 'Now' : dayLabel}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ── Card 5: Per-game performance ── */}
         <View style={styles.analyticsCard}>
           <View style={styles.analyticsTitleRow}>
             <Icon size={38} source={require('../SVG_Icons/Monitor_Section/Controller.svg')} />
@@ -173,7 +268,7 @@ export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminder
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: done ? '100%' : '0%' }]} />
                 </View>
-                <Text style={styles.percent}>{done ? '100%' : '0%'}</Text>
+                <Text style={styles.percent}>{done ? '✓' : '—'}</Text>
               </View>
             );
           })}
@@ -243,14 +338,53 @@ const styles = StyleSheet.create({
   addReminderText: { color: '#2E7359', fontFamily: 'Lora-Medium', fontSize: 16 },
   example: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 14, lineHeight: 19, marginTop: 16 },
   analyticsHeading: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 40, letterSpacing: -1.4, marginTop: 20 },
-  analyticsCard: { borderColor: 'rgba(0, 0, 0, 0.25)', borderRadius: 25, borderWidth: 2, marginTop: 8, padding: 18 },
+  analyticsCard: { borderColor: 'rgba(0, 0, 0, 0.25)', borderRadius: 25, borderWidth: 2, marginTop: 14, padding: 18 },
+  cardTitle: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 20, marginBottom: 14 },
+  cardSubtitle: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 13, marginBottom: 14, marginTop: -10 },
+
+  // Summary card
+  summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
+  summaryBlock: { alignItems: 'center', flex: 1 },
+  summaryDivider: { width: 1, height: 80, backgroundColor: 'rgba(0,0,0,0.1)' },
+  bigCircle: { alignItems: 'center', backgroundColor: '#E7EFE7', borderColor: '#2E7359', borderRadius: 40, borderWidth: 2, flexDirection: 'row', height: 72, justifyContent: 'center', width: 72 },
+  bigCircleOrange: { backgroundColor: '#FFF3E0', borderColor: '#E0943A' },
+  bigCircleBlue: { backgroundColor: '#E2EFF4', borderColor: '#3A7FA0' },
+  bigCircleNumber: { color: '#000', fontFamily: 'Lora-Bold', fontSize: 28 },
+  bigCircleOf: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 14, marginTop: 6 },
+  summaryLabel: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 12, marginTop: 8, textAlign: 'center' },
+
+  // Last active card
+  lastActiveCard: { backgroundColor: '#F0F8F0' },
+  lastActiveRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  lastActiveValue: { color: '#2E7359', fontFamily: 'Lora-Bold', fontSize: 22, marginTop: 2 },
+  activeDot: { backgroundColor: '#2E7359', borderRadius: 10, height: 20, width: 20 },
+
+  // Reminders status card
+  reminderStatusRow: { alignItems: 'baseline', flexDirection: 'row', gap: 10, marginBottom: 10 },
+  reminderStatusFraction: { color: '#000', fontFamily: 'Lora-Bold', fontSize: 36 },
+  reminderStatusTotal: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 22 },
+  reminderStatusLabel: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 15 },
+
+  // 7-day chart
+  chartRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 110 },
+  chartColumn: { alignItems: 'center', flex: 1 },
+  chartBarWrapper: { alignItems: 'center', justifyContent: 'flex-end', height: 86, width: '100%' },
+  chartBar: { borderRadius: 6, width: '60%' },
+  chartBarToday: { backgroundColor: '#2E7359' },
+  chartBarDone: { backgroundColor: '#A8C9BC' },
+  chartBarEmpty: { backgroundColor: '#E6E2DC', height: 6 },
+  chartCount: { color: '#2E7359', fontFamily: 'Lora-Bold', fontSize: 11, marginBottom: 2 },
+  chartDay: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 11, marginTop: 4 },
+  chartDayToday: { color: '#2E7359', fontFamily: 'Lora-Bold' },
+
+  // Per-game performance
   analyticsTitleRow: { alignItems: 'center', flexDirection: 'row', marginBottom: 12 },
   analyticsTitle: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 20, marginLeft: 12 },
   performanceRow: { alignItems: 'center', flexDirection: 'row', height: 44 },
   performanceName: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 14, width: 130 },
   progressTrack: { backgroundColor: '#E6E2DC', borderRadius: 14, flex: 1, height: 20, overflow: 'hidden' },
   progressFill: { backgroundColor: '#2E7359', borderRadius: 14, height: '100%', width: '100%' },
-  percent: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 11, marginLeft: 8 },
+  percent: { color: '#2E7359', fontFamily: 'Lora-Bold', fontSize: 15, marginLeft: 8, width: 20 },
   navigationBar: { alignItems: 'center', backgroundColor: '#2E7359', borderRadius: 50, bottom: 20, flexDirection: 'row', height: 78, justifyContent: 'space-around', left: 22, position: 'absolute', right: 22 },
   navItem: { alignItems: 'center', minWidth: 55 },
   navLabel: { color: '#FFF', fontFamily: 'Lora-Medium', fontSize: 11, marginTop: 2 },
