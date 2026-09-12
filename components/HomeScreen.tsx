@@ -146,7 +146,7 @@ function PerformanceTile({
 }) {
   return (
     <View style={[styles.performanceTile, { backgroundColor: tint }]}>
-      <HomeIcon size={52} source={icon} />
+      <HomeIcon size={40} source={icon} />
       <View style={styles.tileText}>
         <Text style={styles.tileCaption}>{caption}</Text>
         <Text style={styles.completedValue}>{completed}</Text>
@@ -238,17 +238,20 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     flex: 1,
     flexDirection: 'row',
-    height: 96,
-    paddingHorizontal: 11,
+    minHeight: 96,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
   },
   tileText: {
     flex: 1,
+    flexShrink: 1,
     marginLeft: 6,
   },
   tileCaption: {
     color: '#000000',
     fontFamily: 'Lora-Medium',
-    fontSize: 12,
+    fontSize: 11,
+    flexWrap: 'wrap',
   },
   completedValue: {
     color: '#000000',
