@@ -1,10 +1,11 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SvgUri } from 'react-native-svg';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SvgProps } from 'react-native-svg';
 
-const iconSource = (path: number) => Image.resolveAssetSource(path).uri;
+type SvgComponent = (props: SvgProps) => JSX.Element | null;
 
-function HomeIcon({ source, size }: { source: number; size: number }) {
-  return <SvgUri height={size} uri={iconSource(source)} width={size} />;
+function HomeIcon({ source, size }: { source: SvgComponent | { default: SvgComponent }; size: number }) {
+  const SvgIcon = (source as any).default ?? source;
+  return <SvgIcon width={size} height={size} />;
 }
 
 function getGreeting(): string {
@@ -71,7 +72,7 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
             />
             <PerformanceTile
               caption="Reminders Set"
-              completed={`${remindersSet}/${totalReminders}`}
+              completed={totalReminders === 0 ? 'None' : `${remindersSet}/${totalReminders}`}
               icon={require('../SVG_Icons/Home/Water_Drop.svg')}
               tint="#E2EFF4"
             />
@@ -141,7 +142,7 @@ function PerformanceTile({
 }: {
   caption: string;
   completed: string;
-  icon: number;
+  icon: SvgComponent;
   tint: string;
 }) {
   return (
@@ -156,7 +157,7 @@ function PerformanceTile({
   );
 }
 
-function NavItem({ icon, label, onPress }: { icon: number; label: string; onPress?: () => void }) {
+function NavItem({ icon, label, onPress }: { icon: SvgComponent; label: string; onPress?: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}>
       <HomeIcon size={34} source={icon} />

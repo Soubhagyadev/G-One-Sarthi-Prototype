@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SvgUri } from 'react-native-svg';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SvgProps } from 'react-native-svg';
 
-const uri = (source: number) => Image.resolveAssetSource(source).uri;
+type SvgComponent = (props: SvgProps) => JSX.Element | null;
 
-function Icon({ source, size }: { source: number; size: number }) {
-  return <SvgUri height={size} uri={uri(source)} width={size} />;
+function Icon({ source, size }: { source: SvgComponent | { default: SvgComponent }; size: number }) {
+  const SvgIcon = (source as any).default ?? source;
+  return <SvgIcon width={size} height={size} />;
 }
 
 export const reminderIcons = {
@@ -309,7 +310,7 @@ export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminder
   );
 }
 
-function NavItem({ icon, label, onPress }: { icon: number; label: string; onPress?: () => void }) {
+function NavItem({ icon, label, onPress }: { icon: SvgComponent; label: string; onPress?: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}>
       <Icon size={34} source={icon} />

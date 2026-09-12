@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import { SvgUri } from 'react-native-svg';
+import GlobeSvg from './SVG_Icons/Globe.svg';
 import { AskingForName } from './components/AskingForName';
 import { LoginScreen } from './components/LoginScreen';
 import { HomeScreen } from './components/HomeScreen';
@@ -225,11 +225,7 @@ export default function App() {
                 onPress={() => setLanguagePickerOpen((isOpen) => !isOpen)}
                 style={styles.languageButton}
               >
-                <SvgUri
-                  uri={Image.resolveAssetSource(require('./SVG_Icons/Globe.svg')).uri}
-                  height={35}
-                  width={35}
-                />
+                { (() => { const G = (GlobeSvg as any).default ?? GlobeSvg; return <G width={35} height={35} />; })() }
                 <Text style={styles.languageText}>{language}</Text>
               </Pressable>
               {languagePickerOpen && (
@@ -295,7 +291,7 @@ export default function App() {
           ) : screen === 'welcome' ? (
           <WelcomeScreen name={name} onContinue={() => setScreen('home')} />
           ) : (
-          screen === 'home' ? <HomeScreen name={name} streak={streak} gamesCompleted={gamesCompleted.size} remindersSet={reminders.filter(r => r.label.trim()).length} totalReminders={reminders.length} onGames={() => setScreen('games')} onMonitor={() => setScreen('monitor')} onVoice={() => setScreen('voice')} onRandomGame={launchRandomGame} nextReminder={getNextReminder()} onDismissReminder={dismissReminder} /> :
+          screen === 'home' ? <HomeScreen name={name} streak={streak} gamesCompleted={gamesCompleted.size} remindersSet={reminders.filter(r => dismissedReminders.has(r.id)).length} totalReminders={reminders.length} onGames={() => setScreen('games')} onMonitor={() => setScreen('monitor')} onVoice={() => setScreen('voice')} onRandomGame={launchRandomGame} nextReminder={getNextReminder()} onDismissReminder={dismissReminder} /> :
           screen === 'games' ? <GamesScreen onHome={() => setScreen('home')} onMatchPairs={() => setScreen('matchPairs')} onMonitor={() => setScreen('monitor')} onPackYourBags={() => setScreen('packYourBags')} onTravelPattern={() => setScreen('travelGame')} onVoice={() => setScreen('voice')} onWatchTheTray={() => setScreen('watchTheTray')} onPeopleFace={() => setScreen('peopleFace')} /> :
           screen === 'voice' ? <VoiceScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onMonitor={() => setScreen('monitor')} /> :
           screen === 'monitor' ? <MonitorScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onVoice={() => setScreen('voice')} reminders={reminders} setReminders={setReminders} gamesCompleted={gamesCompleted} streak={streak} lastActive={lastActive} weeklyHistory={weeklyHistory} remindersTotal={reminders.length} remindersDone={dismissedReminders.size} /> :

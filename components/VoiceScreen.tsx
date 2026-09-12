@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SvgUri } from 'react-native-svg';
+import { SvgProps } from 'react-native-svg';
 import * as Speech from 'expo-speech';
 import Constants from 'expo-constants';
 
 const GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey as string;
 
-const uri = (source: number) => Image.resolveAssetSource(source).uri;
+type SvgComponent = (props: SvgProps) => JSX.Element | null;
 
-function Icon({ source, size }: { source: number; size: number }) {
-  return <SvgUri height={size} uri={uri(source)} width={size} />;
+function Icon({ source, size }: { source: SvgComponent | { default: SvgComponent }; size: number }) {
+  const SvgIcon = (source as any).default ?? source;
+  return <SvgIcon width={size} height={size} />;
 }
 
 type VoiceScreenProps = {
@@ -140,7 +141,7 @@ export function VoiceScreen({ onGames, onHome, onMonitor }: VoiceScreenProps) {
   );
 }
 
-function NavItem({ icon, label, onPress }: { icon: number; label: string; onPress?: () => void }) {
+function NavItem({ icon, label, onPress }: { icon: SvgComponent; label: string; onPress?: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}>
       <Icon size={34} source={icon} />
