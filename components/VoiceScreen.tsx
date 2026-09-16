@@ -1,10 +1,13 @@
-import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SvgProps } from 'react-native-svg';
 import * as Speech from 'expo-speech';
+import * as ExpoSpeechRecognition from 'expo-speech-recognition';
 import Constants from 'expo-constants';
+import type { Reminder } from './MonitorScreen';
 
 const GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey as string;
+const TOTAL_GAMES = 5;
 
 type SvgComponent = (props: SvgProps) => JSX.Element | null;
 
@@ -17,15 +20,89 @@ type VoiceScreenProps = {
   onGames: () => void;
   onHome: () => void;
   onMonitor: () => void;
+  streak: number;
+  gamesCompleted: Set<string>;
+  reminders: Reminder[];
+  setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>;
+  dismissedReminders: Set<string>;
+  patientName: string;
 };
 
-export function VoiceScreen({ onGames, onHome, onMonitor }: VoiceScreenProps) {
-  const [question, setQuestion] = useState('');
+export function VoiceScreen({
+  onGames, onHome, onMonitor,
+  streak, gamesCompleted, reminders, setReminders, dismissedReminders, patientName,
+}: VoiceScreenProps) {
+  const [transcript, setTranscript] = useState('');
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [sttAvailable, setSttAvailable] = useState(false);
 
-  const askGemini = async () => {
+  // Pulsing animation for mic button while listening
+  const pulse = useRef(new Animated.Value(1)).current;
+  const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    // Check if STT is available on this device/build
+    ExpoSpeechRecognition.ExpoSpeechRecognitionModule.getStateAsync?.()
+      .then(() => setSttAvailable(true))
+      .catch(() => setSttAvailable(false));
+
+    // STT result listener
+    const resultSub = ExpoSpeechRecognition.useSpeechRecognitionEvent
+      ? null
+      : null;
+
+    return () => {
+      Speech.stop();
+      if (listening) ExpoSpeechRecognition.ExpoSpeechRecognitionModule.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (listening) {
+      pulseLoop.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1.15, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ])
+      );
+      pulseLoop.current.start();
+    } else {
+      pulseLoop.current?.stop();
+      pulse.setValue(1);
+    }
+  }, [listening]);
+
+  // Build a rich context string for Gemini
+  const buildContext = (): string => {
+    const completedList = Array.from(gamesCompleted).join(', ') || 'none';
+    const pendingReminders = reminders.filter(r => !dismissedReminders.has(r.id));
+    const doneReminders = reminders.filter(r => dismissedReminders.has(r.id));
+    const reminderSummary = reminders.length === 0
+      ? 'No reminders set.'
+      : `Reminders today: ${reminders.map(r => `${r.label} at ${r.time}`).join(', ')}. Done: ${doneReminders.map(r => r.label).join(', ') || 'none'}. Pending: ${pendingReminders.map(r => r.label).join(', ') || 'none'}.`;
+
+    return `
+You are G-One Sarthi, a warm and caring AI assistant for elderly dementia patients in North East India.
+You are talking to ${patientName}.
+
+Current patient status:
+- Day streak: ${streak} day(s)
+- Memory games completed today: ${gamesCompleted.size} out of ${TOTAL_GAMES}
+- Games completed: ${completedList}
+- ${reminderSummary}
+
+Rules:
+1. Answer in 2-3 short simple sentences. Use simple words suitable for elderly users.
+2. If the user asks to SET a reminder (e.g. "remind me to take medicine at 9 PM"), respond with EXACTLY this JSON on the first line (nothing before it): REMINDER:{"label":"Take Medicine","time":"9:00 PM","icon":"medicine"} then on the next line add a friendly confirmation message. Icon must be one of: medicine, water, walk.
+3. If asked about streak, games, or reminders, use the context above to answer accurately.
+4. Be warm, encouraging, and patient.
+    `.trim();
+  };
+
+  const askGemini = async (question: string) => {
     if (!question.trim()) return;
     setLoading(true);
     setAnswer('');
@@ -37,21 +114,86 @@ export function VoiceScreen({ onGames, onHome, onMonitor }: VoiceScreenProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{
-              parts: [{
-                text: `You are a caring health assistant for elderly dementia patients in North East India. Answer simply and kindly in 2-3 short sentences. Question: ${question}`,
-              }],
+              parts: [{ text: `${buildContext()}\n\nUser: ${question}` }],
             }],
           }),
         }
       );
       const data = await response.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sorry, I could not get an answer. Please try again.';
-      setAnswer(text);
+      const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sorry, I could not get an answer. Please try again.';
+
+      // Check if Gemini wants to set a reminder
+      if (raw.startsWith('REMINDER:')) {
+        const lines = raw.split('\n');
+        try {
+          const jsonStr = lines[0].replace('REMINDER:', '').trim();
+          const reminderData = JSON.parse(jsonStr);
+          const newReminder: Reminder = {
+            id: `voice_${Date.now()}`,
+            icon: (reminderData.icon === 'water' || reminderData.icon === 'walk') ? reminderData.icon : 'medicine',
+            label: reminderData.label ?? 'Reminder',
+            time: reminderData.time ?? '9:00 AM',
+          };
+          setReminders(prev => [...prev, newReminder]);
+          const confirmMsg = lines.slice(1).join('\n').trim() || `Done! I have added a reminder: ${newReminder.label} at ${newReminder.time}.`;
+          setAnswer(confirmMsg);
+          readAloud(confirmMsg);
+        } catch {
+          setAnswer(raw);
+        }
+      } else {
+        setAnswer(raw);
+      }
     } catch {
       setAnswer('Something went wrong. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const startListening = async () => {
+    const { granted } = await ExpoSpeechRecognition.ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!granted) {
+      setAnswer('Microphone permission is needed to use voice input.');
+      return;
+    }
+    setTranscript('');
+    setAnswer('');
+    setListening(true);
+
+    ExpoSpeechRecognition.ExpoSpeechRecognitionModule.start({
+      lang: 'en-IN',
+      interimResults: true,
+      continuous: false,
+    });
+
+    // Listen for results
+    const resultHandler = ExpoSpeechRecognition.ExpoSpeechRecognitionModule.addListener(
+      'result',
+      (event: any) => {
+        const text = event?.results?.[0]?.transcript ?? '';
+        setTranscript(text);
+        if (!event.isFinal) return;
+        setListening(false);
+        resultHandler.remove();
+        errorHandler.remove();
+        if (text.trim()) askGemini(text);
+      }
+    );
+
+    const errorHandler = ExpoSpeechRecognition.ExpoSpeechRecognitionModule.addListener(
+      'error',
+      () => {
+        setListening(false);
+        resultHandler.remove();
+        errorHandler.remove();
+      }
+    );
+  };
+
+  const stopListening = () => {
+    ExpoSpeechRecognition.ExpoSpeechRecognitionModule.stop();
+    setListening(false);
   };
 
   const readAloud = (text: string) => {
@@ -75,6 +217,7 @@ export function VoiceScreen({ onGames, onHome, onMonitor }: VoiceScreenProps) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Text style={styles.heading}>Ask{'\n'}Anything</Text>
 
+        {/* Mic illustration */}
         <Image
           accessibilityIgnoresInvertColors
           resizeMode="contain"
@@ -82,22 +225,47 @@ export function VoiceScreen({ onGames, onHome, onMonitor }: VoiceScreenProps) {
           style={styles.voiceImage}
         />
 
+        {/* Voice mic button */}
+        {sttAvailable && (
+          <View style={styles.micRow}>
+            <Animated.View style={{ transform: [{ scale: pulse }] }}>
+              <Pressable
+                accessibilityLabel={listening ? 'Stop listening' : 'Tap to speak'}
+                accessibilityRole="button"
+                onPress={listening ? stopListening : startListening}
+                style={({ pressed }) => [styles.micButton, listening && styles.micButtonActive, pressed && styles.pressed]}
+              >
+                <Icon size={36} source={require('../SVG_Icons/Voice/Mic.svg')} />
+              </Pressable>
+            </Animated.View>
+            <Text style={styles.micLabel}>{listening ? 'Listening... tap to stop' : 'Tap to speak'}</Text>
+          </View>
+        )}
+
+        {/* Live transcript while listening */}
+        {listening && transcript !== '' && (
+          <View style={styles.transcriptBubble}>
+            <Text style={styles.transcriptText}>{transcript}</Text>
+          </View>
+        )}
+
+        {/* Text input card */}
         <View style={styles.inputCard}>
           <TextInput
             accessibilityLabel="Type your question"
             multiline
-            onChangeText={setQuestion}
-            placeholder="Type your question here..."
+            onChangeText={setTranscript}
+            placeholder="Or type your question here..."
             placeholderTextColor="#B0A8A8"
             style={styles.textInput}
-            value={question}
+            value={transcript}
           />
           <Pressable
             accessibilityLabel="Ask question"
             accessibilityRole="button"
-            disabled={loading || !question.trim()}
-            onPress={askGemini}
-            style={({ pressed }) => [styles.askButton, (loading || !question.trim()) && styles.askButtonDisabled, pressed && styles.pressed]}
+            disabled={loading || !transcript.trim()}
+            onPress={() => askGemini(transcript)}
+            style={({ pressed }) => [styles.askButton, (loading || !transcript.trim()) && styles.askButtonDisabled, pressed && styles.pressed]}
           >
             {loading
               ? <ActivityIndicator color="#FFF" size="small" />
@@ -106,6 +274,7 @@ export function VoiceScreen({ onGames, onHome, onMonitor }: VoiceScreenProps) {
           </Pressable>
         </View>
 
+        {/* Answer card */}
         {answer !== '' && (
           <View style={styles.answerCard}>
             <Text style={styles.answerText}>{answer}</Text>
@@ -115,20 +284,25 @@ export function VoiceScreen({ onGames, onHome, onMonitor }: VoiceScreenProps) {
               style={({ pressed }) => [styles.speakButton, speaking && styles.speakButtonActive, pressed && styles.pressed]}
             >
               <Icon size={22} source={require('../SVG_Icons/Voice/Mic.svg')} />
-              <Text style={[styles.speakButtonText, speaking && styles.speakButtonTextActive]}>{speaking ? 'Stop' : 'Read Aloud'}</Text>
+              <Text style={[styles.speakButtonText, speaking && styles.speakButtonTextActive]}>
+                {speaking ? 'Stop' : 'Read Aloud'}
+              </Text>
             </Pressable>
           </View>
         )}
 
-        <View style={styles.comingSoonCard}>
-          <View style={styles.comingSoonBadge}>
-            <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
+        {/* Coming soon note if STT not available */}
+        {!sttAvailable && (
+          <View style={styles.comingSoonCard}>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
+            </View>
+            <Text style={styles.comingSoonTitle}>Voice Input</Text>
+            <Text style={styles.comingSoonBody}>
+              Speak directly to G-One Sarthi in Assamese, Hindi, Bodo, or English. Requires a development build.
+            </Text>
           </View>
-          <Text style={styles.comingSoonTitle}>Voice Input</Text>
-          <Text style={styles.comingSoonBody}>
-            Speak directly to G-One Sarthi in Assamese, Hindi, Bodo, or English. No typing needed.
-          </Text>
-        </View>
+        )}
       </ScrollView>
 
       <View style={styles.navigationBar}>
@@ -151,157 +325,65 @@ function NavItem({ icon, label, onPress }: { icon: SvgComponent; label: string; 
 }
 
 const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#F9F6F0',
-    left: -27,
-    right: -27,
-  },
-  content: {
-    paddingBottom: 120,
-    paddingHorizontal: 22,
-    paddingTop: 34,
-  },
-  heading: {
-    color: '#000000',
-    fontFamily: 'Lora-Medium',
-    fontSize: 48,
-    letterSpacing: -1.8,
-    lineHeight: 56,
-  },
-  voiceImage: {
-    alignSelf: 'center',
-    borderRadius: 24,
-    height: 160,
-    marginTop: 20,
-    width: 160,
-  },
-  inputCard: {
-    borderColor: 'rgba(0,0,0,0.25)',
-    borderRadius: 25,
-    borderWidth: 2,
-    marginTop: 20,
-    padding: 16,
-  },
-  textInput: {
-    color: '#000',
-    fontFamily: 'Lora-Medium',
-    fontSize: 17,
-    lineHeight: 26,
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  askButton: {
+  container: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F9F6F0', left: -27, right: -27 },
+  content: { paddingBottom: 120, paddingHorizontal: 22, paddingTop: 34 },
+  heading: { color: '#000000', fontFamily: 'Lora-Medium', fontSize: 48, letterSpacing: -1.8, lineHeight: 56 },
+  voiceImage: { alignSelf: 'center', borderRadius: 24, height: 150, marginTop: 16, width: 150 },
+
+  // Mic button
+  micRow: { alignItems: 'center', flexDirection: 'column', marginTop: 20, gap: 10 },
+  micButton: {
     alignItems: 'center',
     backgroundColor: '#2E7359',
-    borderRadius: 12,
-    height: 48,
+    borderRadius: 40,
+    height: 80,
     justifyContent: 'center',
-    marginTop: 12,
+    width: 80,
+    shadowColor: '#2E7359',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  askButtonDisabled: {
-    backgroundColor: '#A8C9BC',
-  },
-  askButtonText: {
-    color: '#FFF',
-    fontFamily: 'Lora-Bold',
-    fontSize: 18,
-  },
-  answerCard: {
-    backgroundColor: '#E7EFE7',
+  micButtonActive: { backgroundColor: '#B85858' },
+  micLabel: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 15 },
+
+  // Live transcript
+  transcriptBubble: {
+    backgroundColor: '#F0F8F0',
     borderColor: '#2E7359',
-    borderRadius: 25,
-    borderWidth: 2,
-    marginTop: 16,
-    padding: 18,
-    alignItems: 'stretch',
-  },
-  answerText: {
-    color: '#000',
-    fontFamily: 'Lora-Medium',
-    fontSize: 16,
-    lineHeight: 26,
-  },
-  speakButton: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    borderColor: '#2E7359',
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1.5,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 14,
-    paddingVertical: 10,
-    gap: 8,
+    marginTop: 12,
+    padding: 14,
   },
-  speakButtonActive: {
-    backgroundColor: '#2E7359',
-  },
-  speakButtonText: {
-    color: '#2E7359',
-    fontFamily: 'Lora-Bold',
-    fontSize: 16,
-  },
-  speakButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  comingSoonCard: {
-    borderColor: 'rgba(0,0,0,0.25)',
-    borderRadius: 25,
-    borderWidth: 2,
-    marginTop: 20,
-    padding: 20,
-  },
-  comingSoonBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#FFE2CA',
-    borderColor: 'rgba(0,0,0,0.15)',
-    borderRadius: 20,
-    borderWidth: 1,
-    marginBottom: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-  },
-  comingSoonBadgeText: {
-    color: '#C47A2B',
-    fontFamily: 'Lora-Bold',
-    fontSize: 13,
-  },
-  comingSoonTitle: {
-    color: '#000',
-    fontFamily: 'Lora-Medium',
-    fontSize: 20,
-    marginBottom: 8,
-  },
-  comingSoonBody: {
-    color: '#786F6F',
-    fontFamily: 'Lora-Medium',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  navigationBar: {
-    alignItems: 'center',
-    backgroundColor: '#2E7359',
-    borderRadius: 50,
-    bottom: 20,
-    flexDirection: 'row',
-    height: 78,
-    justifyContent: 'space-around',
-    left: 22,
-    position: 'absolute',
-    right: 22,
-  },
-  navItem: {
-    alignItems: 'center',
-    minWidth: 55,
-  },
-  navLabel: {
-    color: '#FFFFFF',
-    fontFamily: 'Lora-Medium',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  pressed: {
-    opacity: 0.72,
-  },
+  transcriptText: { color: '#2E7359', fontFamily: 'Lora-Medium', fontSize: 16, lineHeight: 24 },
+
+  // Input card
+  inputCard: { borderColor: 'rgba(0,0,0,0.25)', borderRadius: 25, borderWidth: 2, marginTop: 20, padding: 16 },
+  textInput: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 17, lineHeight: 26, minHeight: 70, textAlignVertical: 'top' },
+  askButton: { alignItems: 'center', backgroundColor: '#2E7359', borderRadius: 12, height: 48, justifyContent: 'center', marginTop: 12 },
+  askButtonDisabled: { backgroundColor: '#A8C9BC' },
+  askButtonText: { color: '#FFF', fontFamily: 'Lora-Bold', fontSize: 18 },
+
+  // Answer card
+  answerCard: { alignItems: 'stretch', backgroundColor: '#E7EFE7', borderColor: '#2E7359', borderRadius: 25, borderWidth: 2, marginTop: 16, padding: 18 },
+  answerText: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 16, lineHeight: 26 },
+  speakButton: { alignItems: 'center', alignSelf: 'stretch', borderColor: '#2E7359', borderRadius: 12, borderWidth: 1.5, flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 14, paddingVertical: 10 },
+  speakButtonActive: { backgroundColor: '#2E7359' },
+  speakButtonText: { color: '#2E7359', fontFamily: 'Lora-Bold', fontSize: 16 },
+  speakButtonTextActive: { color: '#FFFFFF' },
+
+  // Coming soon
+  comingSoonCard: { borderColor: 'rgba(0,0,0,0.25)', borderRadius: 25, borderWidth: 2, marginTop: 20, padding: 20 },
+  comingSoonBadge: { alignSelf: 'flex-start', backgroundColor: '#FFE2CA', borderColor: 'rgba(0,0,0,0.15)', borderRadius: 20, borderWidth: 1, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 5 },
+  comingSoonBadgeText: { color: '#C47A2B', fontFamily: 'Lora-Bold', fontSize: 13 },
+  comingSoonTitle: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 20, marginBottom: 8 },
+  comingSoonBody: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 15, lineHeight: 22 },
+
+  // Nav
+  navigationBar: { alignItems: 'center', backgroundColor: '#2E7359', borderRadius: 50, bottom: 20, flexDirection: 'row', height: 78, justifyContent: 'space-around', left: 22, position: 'absolute', right: 22 },
+  navItem: { alignItems: 'center', minWidth: 55 },
+  navLabel: { color: '#FFFFFF', fontFamily: 'Lora-Medium', fontSize: 11, marginTop: 2 },
+  pressed: { opacity: 0.72 },
 });

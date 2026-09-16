@@ -17,7 +17,10 @@ module.exports = {
         backgroundColor: '#F9F6F0',
       },
     },
-    plugins: ['@react-native-community/datetimepicker'],
+    plugins: [
+      '@react-native-community/datetimepicker',
+      'expo-speech-recognition',
+    ],
     extra: {
       geminiApiKey: process.env.GEMINI_API_KEY,
       eas: {
