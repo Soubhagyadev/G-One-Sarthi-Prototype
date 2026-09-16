@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 120,
     paddingHorizontal: 22,
-    paddingTop: 32,
+    paddingTop: 96,
   },
   greeting: {
     color: '#000000',
@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
     height: 46,
     justifyContent: 'center',
     position: 'absolute',
-    right: 0,
+    right: 22,
     top: 32,
     width: 46,
     zIndex: 5,
