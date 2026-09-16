@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   languageArea: {
     alignItems: 'flex-end',
     position: 'absolute',
-    right: -7,
+    right: 0,
     top: 42,
     zIndex: 5,
   },
