@@ -8,17 +8,44 @@ The app serves two user types: **patients** (elderly individuals) and **caregive
 
 ---
 
+## Package Versions
+
+| Package | Version | Purpose |
+|---|---|---|
+| `expo` | `~54.0.0` | Core Expo SDK |
+| `react` | `19.1.0` | React runtime |
+| `react-native` | `0.81.5` | React Native framework |
+| `typescript` | `~5.9.0` | Language |
+| `expo-font` | `~14.0.0` | Custom font loading (Lora) |
+| `expo-status-bar` | `~3.0.0` | Status bar control |
+| `expo-constants` | `~18.0.14` | App config + extra (Gemini key) |
+| `expo-linear-gradient` | `~15.0.0` | Login screen gradient overlay |
+| `expo-notifications` | `~0.32.0` | Daily reminder push notifications |
+| `expo-speech` | `~14.0.8` | Text-to-speech (voice assistant read aloud) |
+| `expo-speech-recognition` | `3.1.3` | Speech-to-text (voice input) — must stay 3.x for SDK 54 |
+| `@react-native-async-storage/async-storage` | `2.2.0` | Persistent local storage |
+| `@react-native-community/datetimepicker` | `8.4.4` | Native time picker for reminders |
+| `react-native-svg` | `15.12.1` | SVG icon rendering |
+| `react-native-svg-transformer` | `^1.5.3` | Import `.svg` files as React components |
+| `@types/react` | `~19.1.0` | TypeScript types for React |
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Language | TypeScript |
-| Framework | React Native (Expo Go) |
-| Navigation | Manual screen state (no React Navigation) |
-| Fonts | Lora (serif, for headings) + Inter (available, unused) |
-| Icons | SVG via `react-native-svg` + `SvgUri` |
+| Framework | React Native with Expo SDK 54 |
+| Navigation | Manual screen state in App.tsx (no React Navigation) |
+| Storage | AsyncStorage for streak, history, reminders, caregiver notes |
+| Fonts | Lora Medium and Bold |
+| Icons | SVG via `react-native-svg` |
+| Time Picker | `@react-native-community/datetimepicker` |
 | Notifications | `expo-notifications` (scheduled daily reminders) |
+| Voice AI | Gemini API via `expo-speech` (TTS) + `expo-speech-recognition` (STT) |
 | Gradients | `expo-linear-gradient` (LoginScreen overlay) |
+| Build | EAS Build (cloud) — outputs APK via `preview` profile |
 
 ---
 
@@ -32,25 +59,28 @@ The app serves two user types: **patients** (elderly individuals) and **caregive
 | Ink | `#000000` | Headings, body text |
 | Muted | `#786F6F` | Subtitles, secondary text |
 | Card Border | `rgba(0,0,0,0.25)` | All card outlines |
-| Correct | `#DDEDDD` / `#2E7359` | Game correct answer highlight |
-| Incorrect | `#F8DEDE` / `#B85858` | Game wrong answer highlight |
+| SOS Red | `#B85858` | Emergency SOS button, incorrect game answers |
+| Correct Green | `#DDEDDD` / `#2E7359` | Game correct answer highlight |
+| Easy Badge | `#4A9E6B` | Easy difficulty badge on games |
+| Medium Badge | `#C47A2B` | Medium difficulty badge on games |
+| Hard Badge | `#B85858` | Hard difficulty badge on games |
 
 ### Typography
 - **Lora-Medium** — used for almost all text (headings, labels, body, nav)
 - **Lora-Bold** — used for button text and emphasis
-- Large headings are 38–54px with negative letter spacing (-1.2 to -2.5) for a editorial feel
+- Large headings are 38–54px with negative letter spacing (-1.2 to -2.5) for an editorial feel
 
 ### Layout
 - `SafeAreaView` wraps the whole app
 - Screen horizontal padding: `27px` on the outer container
 - Cards use `borderRadius: 25`, `borderWidth: 2`, `borderColor: rgba(0,0,0,0.25)`
-- Bottom navigation bar: `backgroundColor: #2E7359`, `borderRadius: 50`, `height: 78`, floating above content with `bottom: 20`
-- Page transitions: fade-in animation (`Animated.timing`, 260ms, cubic ease-out) on screen change
+- Bottom navigation bar: `backgroundColor: #2E7359`, `borderRadius: 50`, `height: 78`, floating with `bottom: 20`
+- Page transitions: fade + slide-up animation (`Animated.timing`, 280ms, cubic ease-out) on every screen change
+- App runs in **fullscreen immersive mode** — both status bar and navigation bar hidden (`androidStatusBar.hidden: true`)
 
 ### Assets
 - `fonts/Lora/` — Lora variable font (regular, medium, bold, italic variants)
-- `fonts/Inter/` — Inter variable font (loaded but not actively used in components)
-- `SVG_Icons/` — All UI icons as `.svg` files, loaded via `SvgUri`
+- `SVG_Icons/` — All UI icons as `.svg` files
 - `app_image/` — All illustrative PNGs (culturally themed NE Indian illustrations)
 
 ---
@@ -83,10 +113,18 @@ main (role selector)
                            └── voice
 ```
 
-Back buttons:
-- `name` → `main`
-- `login` → `main`
-- All game screens → `games`
+### Persistent State (AsyncStorage keys)
+| Key | Value | Description |
+|---|---|---|
+| `streakCount` | number string | Current day streak |
+| `streakLastDate` | `YYYY-MM-DD` | Date streak was last updated |
+| `gamesCompletedDate` | `YYYY-MM-DD` | Date games list is valid for |
+| `gamesCompletedList` | JSON array | Game IDs completed today |
+| `dismissedRemindersDate` | `YYYY-MM-DD` | Date dismissed list is valid for |
+| `dismissedRemindersList` | JSON array | Reminder IDs dismissed today |
+| `lastActive` | string | Human-readable last active time |
+| `weeklyHistory` | JSON object | `{ "YYYY-MM-DD": count }` map |
+| `caregiverNotes_YYYY-MM-DD` | string | Caregiver note for that date |
 
 ---
 
@@ -97,50 +135,39 @@ Back buttons:
 
 Role selector — first screen the user sees.
 
-- Language picker (top-right): Globe SVG + language name, opens dropdown with options: English, Hindi, Assamese, Bodo. (UI only — language switching does not yet change content)
+- Language picker (top-right): Globe SVG + language name, opens dropdown: English, Hindi, Assamese, Bodo *(UI only — does not yet change content)*
 - Title: "Welcome To G-One Sarthi"
-- Subtitle: "An AI Based Companion For Elderly Patient Suffering From Dementia & Alzheimers"
-- Two role cards:
-  - **I'm a Patient** → navigates to `name`
-  - **I'm a Caregiver** → navigates to `login`
-- Each card shows a culturally themed NE Indian illustration
+- Two role cards: **I'm a Patient** → `name`, **I'm a Caregiver** → `login`
 
 ---
 
 ### 2. Asking For Name (`name`)
 **File:** `components/AskingForName.tsx`
 
-- "‹ Back" button → returns to `main`
+- Back button → `main`
 - Large prompt: "What's Your Name?"
-- Text input with bottom border (underline style), pre-filled with `"Amma"`
-- "Proceed" button → navigates to `welcome`
-- Name is stored in App state and passed to HomeScreen and WelcomeScreen
+- Text input pre-filled with `"Amma"`
+- "Proceed" → `welcome`
+- Name stored in App state, passed to HomeScreen and VoiceScreen
 
 ---
 
 ### 3. Welcome Screen (`welcome`)
 **File:** `components/WelcomeScreen.tsx`
 
-- Full-screen background image (NE Indian cultural illustration)
+- Full-screen NE Indian cultural illustration
 - Heading: "Welcome, [name]"
-- Entire screen is a pressable — tap anywhere to continue to `home`
+- Tap anywhere → `home`
 
 ---
 
 ### 4. Login Screen (`login`)
 **File:** `components/LoginScreen.tsx`
 
-Caregiver-only login.
-
-- Full-screen background image of caregivers
-- Dark gradient overlay at top for heading legibility
-- "‹ Back" button (white) → returns to `main`
-- Heading: "Welcome Caregiver"
-- Email input + Password input (secure)
-- "Sign In" button
-- **Credentials:** `example@new.com` / `123`
-- Correct credentials → navigates to `monitor`
-- Wrong credentials → Alert: "Email or password is wrong"
+- Dark gradient overlay on background image
+- Email + Password inputs
+- Credentials: `example@new.com` / `123` → `monitor`
+- Wrong credentials → Alert
 
 ---
 
@@ -149,66 +176,88 @@ Caregiver-only login.
 
 Main patient dashboard. Scrollable.
 
-- Greeting: "Good Morning, Amma" *(hardcoded — name and time of day not yet dynamic)*
-- Date: "Today Is Thursday 17th October" *(hardcoded — not yet using real date)*
-- **Streak card** (orange): "You Have Been Playing For 0 Days" + fire icon
-- **Performance card**:
-  - "Memory Games 4/5 Completed" (green tile, brain icon)
-  - "Daily Routine 5/6 Completed" (blue tile, water drop icon)
-  - Encouragement row: smiley + "You are doing well keep it up!!"
-- **Today's Game Exercise** card with green "▶ Play" button (shows Alert — not yet wired to a specific game)
-- **Reminders** card: "10:00PM Take Your Meds" *(hardcoded)*
-- Bottom navigation bar: Home · Games · Voice Chat · Monitor
+**Dynamic data:**
+- Greeting: time-of-day aware ("Good Morning / Afternoon / Evening / Night, [name]")
+- Date: real date with ordinal suffix ("Today Is Wednesday 16th September")
+- Streak counter from AsyncStorage
+- Games completed count (live from `gamesCompleted` Set)
+- Reminders set/total (live from `reminders` + `dismissedReminders`)
+- Next upcoming reminder with dismiss checkmark
+
+**Cards (top to bottom):**
+1. **Streak card** (orange) — fire icon + "You Have Been Playing For X Days"
+2. **Performance card** — two tiles side by side:
+   - Memory Games (X/5 Completed) — green tile
+   - Reminders Set (X/Y or "None") — blue tile
+   - Encouragement row: smiley + "You are doing well keep it up!!"
+3. **Today's Game Exercise** — "▶ Play" button launches a random game
+4. **Reminders** — shows next upcoming reminder with dismiss checkbox; "No upcoming reminders for today." when empty
+5. **Daily Quote Card** (tappable) — rotating NE India motivational quotes in original script with English translation + language badge. Tap triggers a Y-axis flip animation to the next quote. Shows "Tap for another quote ↻" hint.
+6. **Emergency SOS Button** (red) — "Emergency SOS / Tap to call for help immediately". Confirms via Alert then dials caregiver number (default: `112` India emergency). Accepts `caregiverPhone` prop for custom number.
+
+**Bottom nav:** Home · Games · Voice Chat · Monitor
 
 ---
 
 ### 6. Games Screen (`games`)
 **File:** `components/GamesScreen.tsx`
 
-Lists all 5 cognitive games. Scrollable.
+Lists all 5 cognitive games with difficulty badges.
 
-| Game | Subtitle | Status |
-|---|---|---|
-| Travel Rating | Emotion recognition / social cognition | ✅ Implemented |
-| Match Pairs | Helps with the memory | ✅ Implemented |
-| Pack Your Bags | Pattern Recognition | ✅ Implemented |
-| Watch The Tray | Memory | ✅ Implemented |
-| People Face | Recognition | ✅ Implemented |
+| Game | Cognitive Domain | Difficulty | Badge Color |
+|---|---|---|---|
+| Travel Rating | Emotion recognition / social cognition | Easy | Green ★☆☆ |
+| Match Pairs | Memory | Medium | Orange ★★☆ |
+| Pack Your Bags | Pattern recognition / reasoning | Medium | Orange ★★☆ |
+| Watch The Tray | Memory | Hard | Red ★★★ |
+| People Face | Face recognition | Hard | Red ★★★ |
 
-Each game is a card with an SVG icon on the left and title/subtitle on the right.
+Each game card: SVG icon (left) + title, subtitle, difficulty badge (right). Card height: 120.
 
 ---
 
 ### 7. Voice Screen (`voice`)
 **File:** `components/VoiceScreen.tsx`
 
-- Heading: "Ask Anything"
-- Large illustrated microphone image (NE Indian botanical themed)
-- "Tap To Speak" button — toggles to "Listening..." state
-- *(No actual speech-to-text integration — UI prototype only)*
-- Bottom navigation bar
+AI-powered voice and text assistant using Gemini API.
+
+**Features:**
+- **Mic button** — tap to start speech recognition (pulses while listening)
+- **Text input** — type a question directly
+- **Gemini AI responses** — answers questions about streak, games, reminders using live app context
+- **Reminder creation via voice** — say "remind me to take medicine at 9 PM" → Gemini returns `REMINDER:{...}` JSON → new reminder added automatically
+- **Read Aloud** — responses can be spoken via `expo-speech` (en-IN, 0.85x rate)
+- **Reminder set toast** — when Gemini adds a reminder, a green slide-up toast card appears from the bottom showing the emoji icon (💊/💧/🚶), label, time, and a ✓ checkmark. Auto-dismisses after 3.5 seconds.
+- **Expo Go fallback** — `expo-speech-recognition` is lazy-loaded via `try/catch require()`. If the native module is unavailable (Expo Go), `sttAvailable = false` and a "Coming Soon" card is shown instead. The mic button is hidden. Text input and Gemini still work.
+
+**Gemini system prompt context includes:**
+- Patient name, day streak, games completed today, reminder status
+- Instructions to respond in 2-3 short simple sentences for elderly users
+- Special `REMINDER:` JSON format for setting reminders
+
+**API:** `gemini-3.5-flash` via REST. Key read from `Constants.expoConfig.extra.geminiApiKey` (set as EAS secret `GEMINI_API_KEY`).
 
 ---
 
 ### 8. Monitor Screen (`monitor`)
 **File:** `components/MonitorScreen.tsx`
 
-Caregiver/patient monitoring dashboard. Scrollable. Two sections:
+Caregiver/patient monitoring dashboard. Scrollable. Two sections.
 
 #### Add Reminders
 - 3 default reminders: Take Medicine (8:00 PM), Drink Water (11:00 AM), Short Walk (5:00 PM)
-- Each reminder card has:
-  - Icon picker (tap to cycle: medicine 💊 / water 💧 / walk 🚶)
-  - Editable label (TextInput)
-  - Editable time (TextInput, format: `8:00 PM`)
-  - "+" button → schedules a real daily push notification via `expo-notifications`
-- "+ Add another reminder" button adds a new blank row
-- Example hint text shown below
+- Each reminder row: icon picker modal → label TextInput → time picker (native `DateTimePicker`) → save (✚) button → delete (✕) button
+- **Save button** schedules a real **daily repeating push notification** via `expo-notifications` DAILY trigger at the reminder's time. Cancels any previous notification for that reminder ID first.
+- **Delete button** cancels the scheduled notification for that reminder.
+- "+ Add another reminder" adds a new blank row
 
 #### Analytics
-- "Game Performance" section
-- Progress bars for all 5 games (currently hardcoded at 100%)
-- Controller SVG icon as section header
+1. **Today's Summary** — Games Played (X/5), Day Streak, Reminders Done (X/Y) in coloured circles
+2. **Last Active** — green card showing when the patient last opened the app
+3. **Reminders Today** — fraction + progress bar
+4. **7-Day Activity** — bar chart showing games played per day (today highlighted in dark green)
+5. **Game Performance** — per-game progress bars (✓ or —)
+6. **Caregiver Notes** — multiline TextInput for daily observations. Saved to AsyncStorage keyed by today's date (`caregiverNotes_YYYY-MM-DD`). Save button turns green with "✓ Saved" for 2 seconds on save.
 
 ---
 
@@ -217,52 +266,46 @@ Caregiver/patient monitoring dashboard. Scrollable. Two sections:
 ### Travel Rating (Emotion Recognition)
 **File:** `components/TravelPatternGame.tsx`
 
-- 6 rounds, one emotion per round
-- Shows a face image (Happy, Sad, Worried, Surprised, Calm, Angry) — NE Indian face illustrations
-- 4 multiple-choice emotion labels
-- Correct → green highlight, Incorrect → red highlight
-- Feedback text + "Next Person" button
-- Final score out of 6
-- Images from: `app_image/Games/Travel_Pattern/`
+- 6 rounds. Shows NE Indian face illustration + 4 emotion label choices.
+- Emotions: Happy, Sad, Worried, Surprised, Calm, Angry
+- Correct → green highlight. Incorrect → red.
+- Final score out of 6.
 
 ---
 
 ### Match Pairs (Memory)
 **File:** `components/MatchPairsGame.tsx`
 
-- 16-card grid (8 pairs), classic memory flip game
-- Cards show "?" when face-down (green background), image when flipped
-- Tap two cards: if they match → stay revealed; if not → flip back after 850ms
-- Move counter
+- 16-card grid (8 pairs). Classic memory flip game.
+- Face-down: green "?" card. Flip two → match stays revealed, no-match flips back after 850ms.
+- Move counter. Complete screen: move count + Play Again / Back.
 - Images: Bamboo, Basket, Bird, Boat, Flower, House, Landscape, Shawl
-- Complete screen shows move count + Play Again / Back To Games
-- Images from: `app_image/Games/Match_Pairs/`
 
 ---
 
-### Pack Your Bags (Pattern Recognition / Reasoning)
+### Pack Your Bags (Reasoning)
 **File:** `components/PackYourBagsGame.tsx`
 
-- 6 scenarios about a character named "Maya"
-- Each scenario presents a travel situation and asks what to pack
-- 4 options per round (one correct)
-- Correct → green, Incorrect → red, feedback text shown
-- Final score: "Maya is ready to travel! You chose X helpful items out of 6."
+- 6 scenarios about "Maya" going on a trip.
+- Choose the correct item to pack from 4 options.
+- Final: "Maya is ready to travel! You chose X helpful items out of 6."
 
 ---
 
 ### Watch The Tray (Memory)
 **File:** `components/WatchTheTrayGame.tsx`
 
-- 3 difficulty levels:
-  - Easy: 3 objects, 5 seconds to memorise
-  - Medium: 5 objects, 5 seconds to memorise
-  - Hard: 7 objects, 4 seconds to memorise
-- **Phase 1 — Memorise:** Shows tray items with animated countdown badge (pulses each second)
-- **Phase 2 — Recall:** Shows tray items + equal number of distractors, all shuffled. Tap to select. Submit enables only when correct count selected.
-- **Phase 3 — Result:** Score, emoji feedback, missed items (orange), wrong picks (red)
-- Images: Bottle, Carpet, Cup, Jute Bag, Rice, Shawl, Spinach, Steel Tiffin, Umbrella
-- Images from: `app_image/Games/Watch_Tray/`
+3 difficulty levels:
+
+| Difficulty | Objects | Time |
+|---|---|---|
+| Easy | 3 | 5 seconds |
+| Medium | 5 | 5 seconds |
+| Hard | 7 | 4 seconds |
+
+- Phase 1: Memorise tray items (animated countdown)
+- Phase 2: Recall — select correct items from shuffled grid (includes distractors)
+- Phase 3: Result — missed items (orange), wrong picks (red)
 
 ---
 
@@ -270,59 +313,83 @@ Caregiver/patient monitoring dashboard. Scrollable. Two sections:
 **File:** `components/PeopleFaceGame.tsx`
 
 - 4 people: Amma, Amma's Son, Amma's Daughter, Amma's Doctor
-- **Phase 1 — Study (8 seconds):** All 4 faces shown in a 2×2 grid with name badge. Animated countdown auto-advances to quiz.
-- **Phase 2 — Quiz:** One face at a time (shuffled order), 4 name options. Feedback after each answer.
-- **Phase 3 — Result:** 2×2 grid with green border (correct) / red border (wrong). Shows "You said: X" for wrong answers.
-- Images from: `app_image/Games/People_Face/`
+- Phase 1 (8s): Study 2×2 grid with name badges. Auto-advances.
+- Phase 2: One face at a time, 4 name options.
+- Phase 3: 2×2 result grid with green/red borders.
 
 ---
 
-## File Structure
+## Notifications
 
+Push notifications are configured via `expo-notifications`.
+
+- **Foreground handler** set in `App.tsx` — notifications show as alerts even when app is open (`shouldShowAlert: true`, `shouldPlaySound: true`)
+- **Scheduling** — in `MonitorScreen.saveReminder()`: requests permissions, then calls `Notifications.scheduleNotificationAsync()` with a `DAILY` trigger at the reminder's hour/minute. If the time has already passed today, schedules for tomorrow.
+- **Cancellation** — `deleteReminder()` calls `Notifications.cancelScheduledNotificationAsync(id)`
+- **Notification identifier** = reminder `id` (used for cancellation)
+- **Content**: title = `{emoji} {label}`, body = `"It's time! {label} — {time}"`
+- **app.config.js plugin**: `expo-notifications` with `color: '#2E7359'`
+
+---
+
+## NE India Motivational Quotes
+
+8 genuine quotes in Assamese and Meitei (Manipuri), each shown with:
+- Original script text
+- English translation
+- Language badge (e.g. "Assamese", "Meitei (Manipuri)")
+
+| # | Language | Theme |
+|---|---|---|
+| 1 | Assamese | Life as a journey, new beginnings |
+| 2 | Assamese | Self-worth and identity |
+| 3 | Assamese | Patience bears the sweetest fruit |
+| 4 | Meitei | Love and courage as human virtues |
+| 5 | Assamese | Embracing the present moment |
+| 6 | Assamese | Home always lives in the heart (memory) |
+| 7 | Assamese | Old trees have deep roots — wisdom with age |
+| 8 | Assamese | Small steps complete the longest journey |
+
+**Rotation:** Starts on today's day-of-year index. Tap the card → Y-axis flip animation → next quote.
+
+---
+
+## EAS Build Configuration
+
+**File:** `eas.json`
+
+```json
+{
+  "build": {
+    "development": { "developmentClient": true, "distribution": "internal" },
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" }
+    },
+    "production": { "autoIncrement": true }
+  }
+}
 ```
-G-One-Sarthi-Prototype/
-├── App.tsx                          # Root: screen state, navigation logic, main screen UI
-├── app.json                         # Expo config
-├── package.json
-├── tsconfig.json
-├── Instruction.md                   # Hackathon problem statement
-│
-├── components/
-│   ├── AskingForName.tsx            # Patient name entry screen
-│   ├── WelcomeScreen.tsx            # Animated welcome with patient name
-│   ├── LoginScreen.tsx              # Caregiver login (email/password)
-│   ├── HomeScreen.tsx               # Patient dashboard
-│   ├── GamesScreen.tsx              # Game selection list
-│   ├── VoiceScreen.tsx              # Voice assistant UI
-│   ├── MonitorScreen.tsx            # Reminders + analytics
-│   ├── TravelPatternGame.tsx        # Emotion recognition game
-│   ├── MatchPairsGame.tsx           # Memory card flip game
-│   ├── PackYourBagsGame.tsx         # Reasoning / packing game
-│   ├── WatchTheTrayGame.tsx         # Tray memory game
-│   └── PeopleFaceGame.tsx           # Face recognition game
-│
-├── app_image/
-│   ├── Main_Screen/                 # Patient + Caregiver role card images
-│   ├── Welcome_Screen/              # Welcome screen background
-│   ├── Login_Screen/                # Caregiver login background
-│   ├── Voice_Page/                  # Mic illustration
-│   └── Games/
-│       ├── Match_Pairs/             # 8 NE Indian themed images
-│       ├── Travel_Pattern/          # 6 emotion face images
-│       ├── Watch_Tray/              # 9 household object images
-│       └── People_Face/             # 4 character face images
-│
-├── SVG_Icons/
-│   ├── Globe.svg                    # Language selector icon
-│   ├── Home/                        # Nav bar + home screen icons
-│   ├── Games/                       # Game card icons
-│   ├── Voice/                       # Mic icon
-│   └── Monitor_Section/             # Reminder icons (medicine, water, walk, controller, plus)
-│
-└── fonts/
-    ├── Lora/                        # Lora variable font + static weights
-    └── Inter/                       # Inter variable font + static weights
+
+- Use `preview` profile for direct APK installation (sideloading / demo)
+- Use `production` profile for Play Store AAB upload
+- `GEMINI_API_KEY` must be set as an EAS secret for voice features to work
+
+**Build command:**
 ```
+eas build --platform android --profile preview
+```
+
+---
+
+## Dependency Notes
+
+| Package | Version | Note |
+|---|---|---|
+| `expo` | `~54.0.0` | SDK 54 |
+| `expo-speech-recognition` | `3.1.3` | Must be 3.x for SDK 54. Do NOT use 56.x (built for SDK 56, causes `OptimizedRecord` Gradle error) |
+| `expo-notifications` | `~0.32.0` | Wired for daily reminder scheduling |
+| `expo-speech` | `~14.0.8` | TTS for voice assistant read-aloud |
 
 ---
 
@@ -331,28 +398,8 @@ G-One-Sarthi-Prototype/
 | Feature | Status |
 |---|---|
 | Language switching (Hindi, Assamese, Bodo) | UI only — selecting a language does not change content |
-| Real date/time on HomeScreen | Hardcoded ("Thursday 17th October") | ✅ Fixed — uses real date with ordinal suffix |
-| Dynamic patient name on HomeScreen | Hardcoded ("Amma") — name from AskingForName not passed through | ✅ Fixed — name passed from App state |
-| Voice-to-text on Voice Screen | UI toggle only — no STT integration |
-| "Today's Game Exercise" Play button | Shows Alert — not wired to a specific game |
-| HomeScreen reminders | Hardcoded single entry — not connected to MonitorScreen reminders |
-| Analytics (game performance %) | Hardcoded at 100% — not tracking real game results |
-| Caregiver dashboard | Caregivers land on MonitorScreen — no separate caregiver view |
-| Offline sync | Not implemented |
+| Caregiver number for SOS | Hardcoded to `112` — no settings screen to save a custom number |
+| Gemini API key in production | Must be set as EAS secret `GEMINI_API_KEY` — voice AI silent-fails without it |
+| Offline Gemini fallback | No offline responses for voice assistant |
 | Adaptive difficulty (AI/ML) | Not implemented |
-
----
-
-## Hackathon Context
-
-**Competition:** Smart India Hackathon 2026
-**Problem Domain:** Elderly healthcare, cognitive assistance, NER India
-**Target Users:** Elderly dementia/Alzheimer's patients + their caregivers in rural/remote NE India
-**Key Requirements from Problem Statement:**
-- Adaptive cognitive games (memory, attention, pattern recognition)
-- Multilingual + voice-assisted interaction
-- Culturally familiar NE Indian themes and visuals
-- Medicine/hydration/activity reminders
-- Caregiver monitoring dashboard
-- Offline functionality
-- Simple, elderly-friendly UI/UX
+| Separate caregiver dashboard | Caregivers land on MonitorScreen — no dedicated caregiver-only view |
