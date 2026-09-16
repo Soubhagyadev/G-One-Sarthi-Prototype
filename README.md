@@ -27,7 +27,7 @@ The app serves two user types:
 
 Everything is wrapped in a **culturally grounded, NE Indian visual and linguistic context**, making cognitive therapy feel familiar rather than clinical.
 
-Built with **React Native**, **TypeScript**.
+Built with **React Native**, **TypeScript**, **AsyncStorage**, and **react-native-svg**.
 
 ---
 
@@ -52,7 +52,7 @@ The North Eastern Region of India faces a growing burden of age-related cognitiv
 
 | Role Selection | Patient Name Entry | Welcome Screen | Caregiver Login |
 |:---:|:---:|:---:|:---:|
-| <img src="app_image/Main_Screen.png" width="200"/> | <img src="app_image/Asking_For_Name.png" width="200"/> | <img src="app_image/Welcome_Screen.png" width="200"/> | <img src="app_image/Login_Screen_Caregiver.png" width="200"/> |
+| <img src="app_image/Main_Screen.png" width="200" height="420" style="object-fit:cover;"/> | <img src="app_image/Asking_For_Name.png" width="200" height="420" style="object-fit:cover;"/> | <img src="app_image/Welcome_Screen.png" width="200" height="420" style="object-fit:cover;"/> | <img src="app_image/Login_Screen_Caregiver.png" width="200" height="420" style="object-fit:cover;"/> |
 | Identify as patient or caregiver, select language (English, Hindi, Assamese, Bodo) | Patient enters name for personalised greetings | Culturally themed welcome illustration, tap to continue | Caregivers log in with email & password |
 
 </div>
@@ -63,7 +63,7 @@ The North Eastern Region of India faces a growing burden of age-related cognitiv
 
 | Home | Games | Voice Assistant | Monitor & Analytics |
 |:---:|:---:|:---:|:---:|
-| <img src="app_image/Home.png" width="200"/> | <img src="app_image/Games.png" width="200"/> | <img src="app_image/Voice_Assistant.png" width="200"/> | <img src="app_image/Monitor Health.png" width="200"/> |
+| <img src="app_image/Home.png" width="200" height="420" style="object-fit:cover;"/> | <img src="app_image/Games.png" width="200" height="420" style="object-fit:cover;"/> | <img src="app_image/Voice_Assistant.png" width="200" height="420" style="object-fit:cover;"/> | <img src="app_image/Monitor Health.png" width="200" height="420" style="object-fit:cover;"/> |
 | Greeting, streak, progress, quick play, next reminder | All 5 cognitive games | Planned multilingual voice interaction | Reminders + full analytics dashboard |
 
 </div>
