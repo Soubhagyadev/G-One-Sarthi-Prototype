@@ -38,6 +38,29 @@ export function VoiceScreen({
   const [speaking, setSpeaking] = useState(false);
   const [listening, setListening] = useState(false);
   const [sttAvailable, setSttAvailable] = useState(false);
+  const [toast, setToast] = useState<{ label: string; time: string; icon: string } | null>(null);
+
+  // Toast slide-up animation
+  const toastY = useRef(new Animated.Value(100)).current;
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (label: string, time: string, icon: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ label, time, icon });
+    toastY.setValue(100);
+    toastOpacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(toastY, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 6 }),
+      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+    toastTimer.current = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(toastY, { toValue: 100, duration: 250, useNativeDriver: true }),
+        Animated.timing(toastOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+      ]).start(() => setToast(null));
+    }, 3500);
+  };
 
   // Pulsing animation for mic button while listening
   const pulse = useRef(new Animated.Value(1)).current;
@@ -138,6 +161,7 @@ Rules:
           const confirmMsg = lines.slice(1).join('\n').trim() || `Done! I have added a reminder: ${newReminder.label} at ${newReminder.time}.`;
           setAnswer(confirmMsg);
           readAloud(confirmMsg);
+          showToast(newReminder.label, newReminder.time, newReminder.icon);
         } catch {
           setAnswer(raw);
         }
@@ -305,6 +329,21 @@ Rules:
         )}
       </ScrollView>
 
+      {toast && (
+        <Animated.View style={[styles.toast, { transform: [{ translateY: toastY }], opacity: toastOpacity }]}>
+          <View style={styles.toastIconBox}>
+            <Text style={styles.toastIconText}>
+              {toast.icon === 'water' ? '💧' : toast.icon === 'walk' ? '🚶' : '💊'}
+            </Text>
+          </View>
+          <View style={styles.toastTextBox}>
+            <Text style={styles.toastTitle}>Reminder Set!</Text>
+            <Text style={styles.toastSub}>{toast.label} · {toast.time}</Text>
+          </View>
+          <Text style={styles.toastCheck}>✓</Text>
+        </Animated.View>
+      )}
+
       <View style={styles.navigationBar}>
         <NavItem icon={require('../SVG_Icons/Home/Home.svg')} label="Home" onPress={onHome} />
         <NavItem icon={require('../SVG_Icons/Home/Controller.svg')} label="Games" onPress={onGames} />
@@ -380,6 +419,39 @@ const styles = StyleSheet.create({
   comingSoonBadgeText: { color: '#C47A2B', fontFamily: 'Lora-Bold', fontSize: 13 },
   comingSoonTitle: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 20, marginBottom: 8 },
   comingSoonBody: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 15, lineHeight: 22 },
+
+  // Toast
+  toast: {
+    alignItems: 'center',
+    backgroundColor: '#2E7359',
+    borderRadius: 20,
+    bottom: 108,
+    elevation: 10,
+    flexDirection: 'row',
+    gap: 12,
+    left: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    position: 'absolute',
+    right: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+  },
+  toastIconBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 12,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  toastIconText: { fontSize: 22 },
+  toastTextBox: { flex: 1 },
+  toastTitle: { color: '#FFFFFF', fontFamily: 'Lora-Bold', fontSize: 15 },
+  toastSub: { color: 'rgba(255,255,255,0.8)', fontFamily: 'Lora-Medium', fontSize: 13, marginTop: 2 },
+  toastCheck: { color: '#FFFFFF', fontFamily: 'Lora-Bold', fontSize: 22 },
 
   // Nav
   navigationBar: { alignItems: 'center', backgroundColor: '#2E7359', borderRadius: 50, bottom: 20, flexDirection: 'row', height: 78, justifyContent: 'space-around', left: 22, position: 'absolute', right: 22 },

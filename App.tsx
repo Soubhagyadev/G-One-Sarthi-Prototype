@@ -213,7 +213,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" hidden={true} />
       <View style={styles.screen}>
         <PageFade screenKey={screen}>
           {screen === 'main' ? (

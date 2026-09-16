@@ -6,16 +6,18 @@ module.exports = {
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
-    androidNavigationBar: {
-      backgroundColor: '#F9F6F0',
-      barStyle: 'dark-content',
-    },
     android: {
       package: 'com.gonesarthi.app',
       adaptiveIcon: {
         foregroundImage: './assets/icon.png',
         backgroundColor: '#F9F6F0',
       },
+      softwareKeyboardLayoutMode: 'pan',
+    },
+    androidStatusBar: {
+      translucent: true,
+      backgroundColor: '#00000000',
+      hidden: true,
     },
     plugins: [
       '@react-native-community/datetimepicker',
