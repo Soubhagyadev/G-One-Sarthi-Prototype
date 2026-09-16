@@ -1,4 +1,5 @@
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
 import { SvgProps } from 'react-native-svg';
 
 // Genuine NE India motivational quotes in local languages, relevant to memory & daily life
@@ -46,13 +47,6 @@ const NE_QUOTES = [
   },
 ];
 
-function getDailyQuote() {
-  const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
-  );
-  return NE_QUOTES[dayOfYear % NE_QUOTES.length];
-}
-
 type SvgComponent = (props: SvgProps) => JSX.Element | null;
 
 function HomeIcon({ source, size }: { source: SvgComponent | { default: SvgComponent }; size: number }) {
@@ -98,7 +92,45 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
   onDismissReminder: (id: string) => void;
   caregiverPhone?: string;
 }) {
-  const quote = getDailyQuote();
+  const dailyIndex = Math.floor(
+    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
+  ) % NE_QUOTES.length;
+
+  const [quoteIndex, setQuoteIndex] = useState(dailyIndex);
+  const [displayIndex, setDisplayIndex] = useState(dailyIndex);
+  const flipAnim = useRef(new Animated.Value(0)).current;
+
+  const flipToNext = () => {
+    const nextIndex = (quoteIndex + 1) % NE_QUOTES.length;
+    // First half: flip card face-away (0 → 90deg)
+    Animated.timing(flipAnim, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setDisplayIndex(nextIndex);
+      setQuoteIndex(nextIndex);
+      // Second half: flip card face-forward (90deg → 0)
+      flipAnim.setValue(-1);
+      Animated.timing(flipAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
+  const flipRotate = flipAnim.interpolate({
+    inputRange: [-1, 0, 1],
+    outputRange: ['-90deg', '0deg', '90deg'],
+  });
+
+  const flipScale = flipAnim.interpolate({
+    inputRange: [-1, 0, 1],
+    outputRange: [0.85, 1, 0.85],
+  });
+
+  const quote = NE_QUOTES[displayIndex];
 
   const handleSOS = () => {
     const phone = caregiverPhone || '112'; // 112 is India's national emergency number
@@ -193,14 +225,21 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
           )}
         </View>
 
-        {/* Daily Quote Card */}
-        <View style={styles.quoteCard}>
-          <View style={styles.quoteBadge}>
-            <Text style={styles.quoteBadgeText}>{quote.language}</Text>
-          </View>
-          <Text style={styles.quoteText}>{quote.text}</Text>
-          <Text style={styles.quoteTranslation}>"{quote.translation}"</Text>
-        </View>
+        {/* Daily Quote Card — tap to flip to next quote */}
+        <Pressable
+          accessibilityLabel="Motivational quote — tap to see another"
+          accessibilityRole="button"
+          onPress={flipToNext}
+        >
+          <Animated.View style={[styles.quoteCard, { transform: [{ rotateY: flipRotate }, { scale: flipScale }] }]}>
+            <View style={styles.quoteBadge}>
+              <Text style={styles.quoteBadgeText}>{quote.language}</Text>
+            </View>
+            <Text style={styles.quoteText}>{quote.text}</Text>
+            <Text style={styles.quoteTranslation}>"{quote.translation}"</Text>
+            <Text style={styles.quoteTapHint}>Tap for another quote ↻</Text>
+          </Animated.View>
+        </Pressable>
 
         {/* Emergency SOS Button */}
         <Pressable
@@ -209,7 +248,6 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
           onPress={handleSOS}
           style={({ pressed }) => [styles.sosButton, pressed && styles.sosPressed]}
         >
-          <Text style={styles.sosIcon}>🆘</Text>
           <View>
             <Text style={styles.sosTitle}>Emergency SOS</Text>
             <Text style={styles.sosSub}>Tap to call for help immediately</Text>
@@ -333,30 +371,34 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     minHeight: 96,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
   },
   tileText: {
     flex: 1,
     flexShrink: 1,
-    marginLeft: 6,
+    marginLeft: 8,
+    justifyContent: 'center',
   },
   tileCaption: {
     color: '#000000',
     fontFamily: 'Lora-Medium',
     fontSize: 11,
     flexWrap: 'wrap',
+    lineHeight: 15,
   },
   completedValue: {
     color: '#000000',
     fontFamily: 'Lora-Bold',
-    fontSize: 20,
-    lineHeight: 24,
+    fontSize: 22,
+    lineHeight: 28,
+    marginTop: 2,
   },
   completedLabel: {
     color: '#7D6E6E',
     fontFamily: 'Lora-Medium',
     fontSize: 12,
+    marginTop: 1,
   },
   encouragement: {
     alignItems: 'center',
@@ -403,7 +445,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     marginTop: 20,
     paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingVertical: 14,
   },
   reminderLine: {
     alignItems: 'center',
@@ -435,7 +477,8 @@ const styles = StyleSheet.create({
     color: '#786F6F',
     fontFamily: 'Lora-Medium',
     fontSize: 15,
-    marginTop: 4,
+    marginTop: 6,
+    marginBottom: 4,
   },
   // Quote card
   quoteCard: {
@@ -475,6 +518,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontStyle: 'italic',
   },
+  quoteTapHint: {
+    color: '#C47A2B',
+    fontFamily: 'Lora-Medium',
+    fontSize: 12,
+    marginTop: 10,
+    textAlign: 'right',
+  },
   // SOS button
   sosButton: {
     alignItems: 'center',
@@ -495,9 +545,6 @@ const styles = StyleSheet.create({
   sosPressed: {
     opacity: 0.82,
     transform: [{ scale: 0.97 }],
-  },
-  sosIcon: {
-    fontSize: 38,
   },
   sosTitle: {
     color: '#FFFFFF',

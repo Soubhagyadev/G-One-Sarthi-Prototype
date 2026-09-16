@@ -2,8 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SvgProps } from 'react-native-svg';
 import * as Speech from 'expo-speech';
-import * as ExpoSpeechRecognition from 'expo-speech-recognition';
 import Constants from 'expo-constants';
+
+// Lazy-load expo-speech-recognition so Expo Go doesn't crash at import time.
+// The native module only exists in custom/EAS builds, not in Expo Go.
+let ExpoSpeechRecognition: typeof import('expo-speech-recognition') | null = null;
+try {
+  ExpoSpeechRecognition = require('expo-speech-recognition');
+} catch {
+  ExpoSpeechRecognition = null;
+}
 import type { Reminder } from './MonitorScreen';
 
 const GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey as string;
@@ -68,18 +76,16 @@ export function VoiceScreen({
 
   useEffect(() => {
     // Check if STT is available on this device/build
-    ExpoSpeechRecognition.ExpoSpeechRecognitionModule.getStateAsync?.()
+    const module = ExpoSpeechRecognition?.ExpoSpeechRecognitionModule;
+    if (!module) { setSttAvailable(false); return; }
+
+    module.getStateAsync?.()
       .then(() => setSttAvailable(true))
       .catch(() => setSttAvailable(false));
 
-    // STT result listener
-    const resultSub = ExpoSpeechRecognition.useSpeechRecognitionEvent
-      ? null
-      : null;
-
     return () => {
       Speech.stop();
-      if (listening) ExpoSpeechRecognition.ExpoSpeechRecognitionModule.abort();
+      if (listening) module.abort?.();
     };
   }, []);
 
@@ -176,7 +182,10 @@ Rules:
   };
 
   const startListening = async () => {
-    const { granted } = await ExpoSpeechRecognition.ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    const module = ExpoSpeechRecognition?.ExpoSpeechRecognitionModule;
+    if (!module) return;
+
+    const { granted } = await module.requestPermissionsAsync();
     if (!granted) {
       setAnswer('Microphone permission is needed to use voice input.');
       return;
@@ -185,14 +194,13 @@ Rules:
     setAnswer('');
     setListening(true);
 
-    ExpoSpeechRecognition.ExpoSpeechRecognitionModule.start({
+    module.start({
       lang: 'en-IN',
       interimResults: true,
       continuous: false,
     });
 
-    // Listen for results
-    const resultHandler = ExpoSpeechRecognition.ExpoSpeechRecognitionModule.addListener(
+    const resultHandler = module.addListener(
       'result',
       (event: any) => {
         const text = event?.results?.[0]?.transcript ?? '';
@@ -205,7 +213,7 @@ Rules:
       }
     );
 
-    const errorHandler = ExpoSpeechRecognition.ExpoSpeechRecognitionModule.addListener(
+    const errorHandler = module.addListener(
       'error',
       () => {
         setListening(false);
@@ -216,7 +224,7 @@ Rules:
   };
 
   const stopListening = () => {
-    ExpoSpeechRecognition.ExpoSpeechRecognitionModule.stop();
+    ExpoSpeechRecognition?.ExpoSpeechRecognitionModule?.stop?.();
     setListening(false);
   };
 
