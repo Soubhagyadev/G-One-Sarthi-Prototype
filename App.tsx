@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import { LanguageProvider, useLanguage } from './LanguageContext';
 
 // Show notifications even when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -60,6 +61,10 @@ export default function App() {
   const [fontsLoaded] = useFonts({
     'Lora-Medium': require('./fonts/Lora/static/Lora-Medium.ttf'),
     'Lora-Bold': require('./fonts/Lora/static/Lora-Bold.ttf'),
+    'NotoSerif-Bengali': require('./fonts/Noto_Serif_Bengali/static/NotoSerifBengali-Medium.ttf'),
+    'NotoSerif-Bengali-Bold': require('./fonts/Noto_Serif_Bengali/static/NotoSerifBengali-Bold.ttf'),
+    'NotoSerif-Devanagari': require('./fonts/Noto_Serif_Devanagari/static/NotoSerifDevanagari-Medium.ttf'),
+    'NotoSerif-Devanagari-Bold': require('./fonts/Noto_Serif_Devanagari/static/NotoSerifDevanagari-Bold.ttf'),
   });
 
   // --- Streak logic ---
@@ -224,75 +229,19 @@ export default function App() {
   };
 
   return (
+    <LanguageProvider language={language}>
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" hidden={true} />
       <View style={styles.screen}>
         <PageFade screenKey={screen}>
           {screen === 'main' ? (
-          <>
-            <View style={styles.languageArea}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Select language: ${language}`}
-                onPress={() => setLanguagePickerOpen((isOpen) => !isOpen)}
-                style={styles.languageButton}
-              >
-                { (() => { const G = (GlobeSvg as any).default ?? GlobeSvg; return <G width={35} height={35} />; })() }
-                <Text style={styles.languageText}>{language}</Text>
-              </Pressable>
-              {languagePickerOpen && (
-                <View accessibilityRole="menu" style={styles.languageMenu}>
-                  {['English', 'Hindi', 'Assamese', 'Bodo'].map((option) => (
-                    <Pressable
-                      key={option}
-                      accessibilityRole="menuitem"
-                      onPress={() => chooseLanguage(option)}
-                      style={({ pressed }) => [styles.languageOption, pressed && styles.pressed]}
-                    >
-                      <Text style={styles.languageOptionText}>{option}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
-
-            <View style={styles.intro}>
-              <Text style={styles.title}>Welcome To{`\n`}G-One Sarthi</Text>
-              <Text style={styles.subtitle}>
-                An AI Based Companion{`\n`}For Elderly Patient Suffering From Dementia & Alzheimers
-              </Text>
-            </View>
-
-            <View style={styles.roleList}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="I'm a Patient"
-            onPress={() => chooseRole('patient')}
-            style={({ pressed }) => [styles.roleCard, pressed && styles.pressed]}
-          >
-            <Text style={styles.roleTitle}>I'm a Patient</Text>
-            <Image
-              source={require('./app_image/Main_Screen/Caregiver_Image.png')}
-              resizeMode="contain"
-              style={styles.patientImage}
-            />
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="I'm a Caregiver"
-            onPress={() => chooseRole('caregiver')}
-            style={({ pressed }) => [styles.roleCard, pressed && styles.pressed]}
-          >
-            <Text style={styles.roleTitle}>I'm a Caregiver</Text>
-            <Image
-              source={require('./app_image/Main_Screen/Patient_Image.png')}
-              resizeMode="contain"
-              style={styles.caregiverImage}
-            />
-          </Pressable>
-        </View>
-          </>
+          <MainScreenContent
+            language={language}
+            languagePickerOpen={languagePickerOpen}
+            setLanguagePickerOpen={setLanguagePickerOpen}
+            chooseLanguage={chooseLanguage}
+            chooseRole={chooseRole}
+          />
           ) : screen === 'name' ? (
           <AskingForName
             name={name}
@@ -303,7 +252,7 @@ export default function App() {
           ) : screen === 'welcome' ? (
           <WelcomeScreen name={name} onContinue={() => setScreen('home')} />
           ) : (
-          screen === 'home' ? <HomeScreen name={name} streak={streak} gamesCompleted={gamesCompleted.size} remindersSet={reminders.filter(r => dismissedReminders.has(r.id)).length} totalReminders={reminders.length} onGames={() => setScreen('games')} onMonitor={() => setScreen('monitor')} onVoice={() => setScreen('voice')} onRandomGame={launchRandomGame} nextReminder={getNextReminder()} onDismissReminder={dismissReminder} caregiverPhone="112" /> :
+          screen === 'home' ? <HomeScreen name={name} streak={streak} gamesCompleted={gamesCompleted.size} remindersSet={reminders.filter(r => dismissedReminders.has(r.id)).length} totalReminders={reminders.length} onGames={() => setScreen('games')} onMonitor={() => setScreen('monitor')} onVoice={() => setScreen('voice')} onRandomGame={launchRandomGame} nextReminder={getNextReminder()} onDismissReminder={dismissReminder} caregiverPhone="112" onLanguageChange={(lang) => setLanguage(lang as any)} /> :
           screen === 'games' ? <GamesScreen onHome={() => setScreen('home')} onMatchPairs={() => setScreen('matchPairs')} onMonitor={() => setScreen('monitor')} onPackYourBags={() => setScreen('packYourBags')} onTravelPattern={() => setScreen('travelGame')} onVoice={() => setScreen('voice')} onWatchTheTray={() => setScreen('watchTheTray')} onPeopleFace={() => setScreen('peopleFace')} /> :
           screen === 'voice' ? <VoiceScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onMonitor={() => setScreen('monitor')} streak={streak} gamesCompleted={gamesCompleted} reminders={reminders} setReminders={setReminders} dismissedReminders={dismissedReminders} patientName={name} /> :
           screen === 'monitor' ? <MonitorScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onVoice={() => setScreen('voice')} reminders={reminders} setReminders={setReminders} gamesCompleted={gamesCompleted} streak={streak} lastActive={lastActive} weeklyHistory={weeklyHistory} remindersTotal={reminders.length} remindersDone={dismissedReminders.size} /> :
@@ -317,6 +266,87 @@ export default function App() {
         </PageFade>
       </View>
     </SafeAreaView>
+    </LanguageProvider>
+  );
+}
+
+function MainScreenContent({
+  language,
+  languagePickerOpen,
+  setLanguagePickerOpen,
+  chooseLanguage,
+  chooseRole,
+}: {
+  language: string;
+  languagePickerOpen: boolean;
+  setLanguagePickerOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
+  chooseLanguage: (lang: string) => void;
+  chooseRole: (role: 'patient' | 'caregiver') => void;
+}) {
+  const { t, fontMedium, fontBold, headingStyle } = useLanguage();
+  return (
+    <>
+      <View style={styles.languageArea}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Select language: ${language}`}
+          onPress={() => setLanguagePickerOpen((isOpen) => !isOpen)}
+          style={styles.languageButton}
+        >
+          {(() => { const G = (GlobeSvg as any).default ?? GlobeSvg; return <G width={35} height={35} />; })()}
+          <Text style={[styles.languageText, { fontFamily: fontMedium }]}>{language}</Text>
+        </Pressable>
+        {languagePickerOpen && (
+          <View accessibilityRole="menu" style={styles.languageMenu}>
+            {['English', 'Hindi', 'Assamese', 'Bodo'].map((option) => (
+              <Pressable
+                key={option}
+                accessibilityRole="menuitem"
+                onPress={() => chooseLanguage(option)}
+                style={({ pressed }) => [styles.languageOption, pressed && styles.pressed]}
+              >
+                <Text style={[styles.languageOptionText, { fontFamily: fontMedium }]}>{option}</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </View>
+
+      <View style={styles.intro}>
+        <Text style={[styles.title, { fontFamily: fontMedium, ...headingStyle(45, 58) }]}>{t('welcome')}</Text>
+        <Text style={[styles.subtitle, { fontFamily: fontMedium }]}>{t('subtitle')}</Text>
+      </View>
+
+      <View style={styles.roleList}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('imPatient')}
+          onPress={() => chooseRole('patient')}
+          style={({ pressed }) => [styles.roleCard, pressed && styles.pressed]}
+        >
+          <Text style={[styles.roleTitle, { fontFamily: fontMedium }]}>{t('imPatient')}</Text>
+          <Image
+            source={require('./app_image/Main_Screen/Caregiver_Image.png')}
+            resizeMode="contain"
+            style={styles.patientImage}
+          />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('imCaregiver')}
+          onPress={() => chooseRole('caregiver')}
+          style={({ pressed }) => [styles.roleCard, pressed && styles.pressed]}
+        >
+          <Text style={[styles.roleTitle, { fontFamily: fontMedium }]}>{t('imCaregiver')}</Text>
+          <Image
+            source={require('./app_image/Main_Screen/Patient_Image.png')}
+            resizeMode="contain"
+            style={styles.caregiverImage}
+          />
+        </Pressable>
+      </View>
+    </>
   );
 }
 
@@ -378,20 +408,22 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   languageButton: {
+    minWidth: 120,
+    maxWidth: 200,
     height: 55,
-    width: 134,
     borderColor: colors.ink,
     borderWidth: 1,
     borderRadius: 28,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 16,
     gap: 7,
   },
   languageText: {
-    fontFamily: 'Lora-Medium',
-    fontSize: 20,
+    fontSize: 18,
     color: colors.ink,
+    flexShrink: 1,
   },
   languageMenu: {
     backgroundColor: colors.background,
@@ -405,7 +437,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.12,
     shadowRadius: 8,
-    width: 180,
+    minWidth: 180,
   },
   languageOption: {
     minHeight: 48,
@@ -414,18 +446,14 @@ const styles = StyleSheet.create({
   },
   languageOptionText: {
     color: colors.ink,
-    fontFamily: 'Lora-Medium',
     fontSize: 18,
   },
   intro: {
-    marginTop: 97,
+    marginTop: 130,
   },
   title: {
     color: colors.ink,
-    fontFamily: 'Lora-Medium',
     fontSize: 45,
-    lineHeight: 58,
-    letterSpacing: -1.5,
   },
   subtitle: {
     color: colors.ink,

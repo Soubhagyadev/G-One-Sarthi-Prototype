@@ -1,4 +1,5 @@
 import { StyleSheet, Text, TextInput, Pressable, View } from 'react-native';
+import { useLanguage } from '../LanguageContext';
 
 type AskingForNameProps = {
   name: string;
@@ -8,6 +9,8 @@ type AskingForNameProps = {
 };
 
 export function AskingForName({ name, onBack, onChangeName, onProceed }: AskingForNameProps) {
+  const { t: tr, fontMedium, fontBold, headingStyle } = useLanguage();
+
   return (
     <View style={styles.container}>
       <Pressable
@@ -16,15 +19,17 @@ export function AskingForName({ name, onBack, onChangeName, onProceed }: AskingF
         onPress={onBack}
         style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
       >
-        <Text style={styles.backText}>‹ Back</Text>
+        <Text style={[styles.backText, { fontFamily: fontMedium }]}>{tr('back')}</Text>
       </Pressable>
       <View style={styles.body}>
-        <Text style={styles.question}>What's Your{`\n`}Name?</Text>
+        <Text style={[styles.question, { fontFamily: fontMedium, ...headingStyle(52, 64) }]}>{tr('whatsYourName')}</Text>
         <TextInput
           accessibilityLabel="Your name"
           onChangeText={onChangeName}
+          placeholder={tr('namePlaceholder')}
+          placeholderTextColor="#786F6F"
           selectTextOnFocus
-          style={styles.nameInput}
+          style={[styles.nameInput, { fontFamily: fontMedium }]}
           value={name}
         />
         <Pressable
@@ -32,7 +37,7 @@ export function AskingForName({ name, onBack, onChangeName, onProceed }: AskingF
           onPress={onProceed}
           style={({ pressed }) => [styles.proceedButton, pressed && styles.pressed]}
         >
-          <Text style={styles.proceedText}>Proceed</Text>
+          <Text style={[styles.proceedText, { fontFamily: fontBold }]}>{tr('proceed')}</Text>
         </Pressable>
       </View>
     </View>
@@ -52,7 +57,6 @@ const styles = StyleSheet.create({
   },
   backText: {
     color: '#2E7359',
-    fontFamily: 'Lora-Medium',
     fontSize: 18,
   },
   body: {
@@ -62,16 +66,12 @@ const styles = StyleSheet.create({
   },
   question: {
     color: '#000000',
-    fontFamily: 'Lora-Medium',
     fontSize: 52,
-    letterSpacing: -1.5,
-    lineHeight: 64,
   },
   nameInput: {
     borderBottomColor: '#000000',
     borderBottomWidth: 1,
     color: '#786F6F',
-    fontFamily: 'Lora-Medium',
     fontSize: 34,
     height: 55,
     lineHeight: 43,
@@ -92,7 +92,6 @@ const styles = StyleSheet.create({
   },
   proceedText: {
     color: '#FFFFFF',
-    fontFamily: 'Lora-Bold',
     fontSize: 20,
   },
   pressed: {

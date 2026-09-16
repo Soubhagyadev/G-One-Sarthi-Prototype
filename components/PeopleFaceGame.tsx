@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useLanguage } from '../LanguageContext';
 
 // ─── People data ──────────────────────────────────────────────────────────────
 
@@ -14,12 +15,11 @@ type PersonKey = typeof PEOPLE[number]['key'];
 
 const ALL_NAMES = PEOPLE.map((p) => p.name);
 
-// How long to study the faces (seconds)
 const STUDY_SECONDS = 8;
 
 // ─── Countdown badge ──────────────────────────────────────────────────────────
 
-function CountdownBadge({ seconds }: { seconds: number }) {
+function CountdownBadge({ seconds, fontBold }: { seconds: number; fontBold: string }) {
   const scale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.sequence([
@@ -29,7 +29,7 @@ function CountdownBadge({ seconds }: { seconds: number }) {
   }, [seconds]);
   return (
     <Animated.View style={[styles.countdownBadge, { transform: [{ scale }] }]}>
-      <Text style={styles.countdownText}>{seconds}</Text>
+      <Text style={[styles.countdownText, { fontFamily: fontBold }]}>{seconds}</Text>
     </Animated.View>
   );
 }
@@ -41,9 +41,9 @@ type Phase = 'study' | 'quiz' | 'result';
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function PeopleFaceGame({ onExit, onComplete }: { onExit: () => void; onComplete?: () => void }) {
+  const { t: tr, fontMedium, fontBold } = useLanguage();
   const [phase, setPhase] = useState<Phase>('study');
   const [countdown, setCountdown] = useState(STUDY_SECONDS);
-  // Quiz state
   const [quizOrder] = useState<PersonKey[]>(() => shuffle(PEOPLE.map((p) => p.key)));
   const [quizIndex, setQuizIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -56,7 +56,6 @@ export function PeopleFaceGame({ onExit, onComplete }: { onExit: () => void; onC
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   };
 
-  // Start countdown when study phase mounts
   useEffect(() => {
     if (phase !== 'study') return;
     let remaining = STUDY_SECONDS;
@@ -87,12 +86,12 @@ export function PeopleFaceGame({ onExit, onComplete }: { onExit: () => void; onC
     return (
       <View style={styles.container}>
         <Pressable accessibilityRole="button" onPress={onExit} style={styles.backButton}>
-          <Text style={styles.backText}>‹ Games</Text>
+          <Text style={[styles.backText, { fontFamily: fontMedium }]}>‹ {tr('backToGames')}</Text>
         </Pressable>
-        <Text style={styles.heading}>Remember{'\n'}These Faces</Text>
+        <Text style={[styles.heading, { fontFamily: fontMedium }]}>{tr('studyFaces')}</Text>
         <View style={styles.studyRow}>
-          <Text style={styles.subtitle}>Study them carefully…</Text>
-          <CountdownBadge seconds={countdown} />
+          <Text style={[styles.subtitle, { fontFamily: fontMedium }]}>Study them carefully…</Text>
+          <CountdownBadge seconds={countdown} fontBold={fontBold} />
         </View>
         <View style={styles.faceGrid}>
           {PEOPLE.map((person) => (
@@ -104,7 +103,7 @@ export function PeopleFaceGame({ onExit, onComplete }: { onExit: () => void; onC
                 style={styles.faceImage}
               />
               <View style={styles.nameBadge}>
-                <Text style={styles.nameText}>{person.name}</Text>
+                <Text style={[styles.nameText, { fontFamily: fontMedium }]}>{person.name}</Text>
               </View>
             </View>
           ))}
@@ -138,8 +137,8 @@ export function PeopleFaceGame({ onExit, onComplete }: { onExit: () => void; onC
 
     return (
       <View style={styles.container}>
-        <Text style={styles.heading}>Who Is This?</Text>
-        <Text style={styles.progress}>{progress}</Text>
+        <Text style={[styles.heading, { fontFamily: fontMedium }]}>{tr('whoIsThis')}</Text>
+        <Text style={[styles.progress, { fontFamily: fontMedium }]}>{progress}</Text>
 
         <Image
           accessibilityLabel="Person to identify"
@@ -170,6 +169,7 @@ export function PeopleFaceGame({ onExit, onComplete }: { onExit: () => void; onC
                   styles.optionText,
                   selected && isAnswer && styles.correctOptionText,
                   isChosen && !isAnswer && styles.incorrectOptionText,
+                  { fontFamily: fontMedium },
                 ]}>{name}</Text>
               </Pressable>
             );
@@ -178,14 +178,12 @@ export function PeopleFaceGame({ onExit, onComplete }: { onExit: () => void; onC
 
         {selected && (
           <View style={styles.feedback}>
-            <Text style={[styles.feedbackText, correct ? styles.correctText : styles.incorrectText]}>
-              {correct
-                ? 'That\'s right! 🎉'
-                : `That is ${currentPerson.name}. Let's remember their face.`}
+            <Text style={[styles.feedbackText, correct ? styles.correctText : styles.incorrectText, { fontFamily: fontMedium }]}>
+              {correct ? tr('correct') : `${tr('incorrect')} — ${currentPerson.name}`}
             </Text>
             <Pressable accessibilityRole="button" onPress={next} style={styles.primaryButton}>
-              <Text style={styles.primaryText}>
-                {quizIndex + 1 === PEOPLE.length ? 'See Result' : 'Next Person'}
+              <Text style={[styles.primaryText, { fontFamily: fontBold }]}>
+                {quizIndex + 1 === PEOPLE.length ? tr('score') : tr('nextPerson')}
               </Text>
             </Pressable>
           </View>
@@ -203,12 +201,11 @@ export function PeopleFaceGame({ onExit, onComplete }: { onExit: () => void; onC
     <View style={styles.container}>
       <View style={styles.resultContent}>
         <Text style={styles.resultEmoji}>{perfect ? '🌟' : correctCount >= 3 ? '👍' : '💪'}</Text>
-        <Text style={styles.resultTitle}>
+        <Text style={[styles.resultTitle, { fontFamily: fontMedium }]}>
           {perfect ? 'Perfect!' : correctCount >= 3 ? 'Well Done!' : 'Keep Practising!'}
         </Text>
-        <Text style={styles.resultScore}>{correctCount} of {total} correct</Text>
+        <Text style={[styles.resultScore, { fontFamily: fontBold }]}>{tr('peopleFaceResult', correctCount)}</Text>
 
-        {/* Show each face with result */}
         <View style={styles.resultGrid}>
           {PEOPLE.map((person) => {
             const wasCorrect = answers[person.key] === person.name;
@@ -218,11 +215,13 @@ export function PeopleFaceGame({ onExit, onComplete }: { onExit: () => void; onC
                 style={[styles.resultFaceCard, wasCorrect ? styles.resultCorrectCard : styles.resultWrongCard]}
               >
                 <Image resizeMode="cover" source={person.image} style={styles.resultFaceImage} />
-                <Text style={styles.resultFaceName}>{person.name}</Text>
+                <Text style={[styles.resultFaceName, { fontFamily: fontMedium }]}>{person.name}</Text>
                 {!wasCorrect && answers[person.key] && (
-                  <Text style={styles.resultWrongAnswer}>You said: {answers[person.key]}</Text>
+                  <Text style={[styles.resultWrongAnswer, { fontFamily: fontMedium }]}>
+                    {tr('youSaid')} {answers[person.key]}
+                  </Text>
                 )}
-                <Text style={wasCorrect ? styles.resultTick : styles.resultCross}>
+                <Text style={[wasCorrect ? styles.resultTick : styles.resultCross, { fontFamily: fontBold }]}>
                   {wasCorrect ? '✓' : '✗'}
                 </Text>
               </View>
@@ -231,10 +230,10 @@ export function PeopleFaceGame({ onExit, onComplete }: { onExit: () => void; onC
         </View>
 
         <Pressable accessibilityRole="button" onPress={resetGame} style={styles.primaryButton}>
-          <Text style={styles.primaryText}>Play Again</Text>
+          <Text style={[styles.primaryText, { fontFamily: fontBold }]}>{tr('playAgain')}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={onExit} style={styles.outlineButton}>
-          <Text style={styles.outlineText}>Back To Games</Text>
+          <Text style={[styles.outlineText, { fontFamily: fontBold }]}>{tr('backToGames')}</Text>
         </Pressable>
       </View>
     </View>
@@ -263,20 +262,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   backButton: { alignSelf: 'flex-start', marginTop: 25, paddingVertical: 10 },
-  backText: { color: '#2E7359', fontFamily: 'Lora-Medium', fontSize: 18 },
+  backText: { color: '#2E7359', fontSize: 18 },
 
   heading: {
     color: '#000',
-    fontFamily: 'Lora-Medium',
     fontSize: 38,
-    letterSpacing: -1.3,
-    lineHeight: 48,
     marginTop: 10,
     textAlign: 'center',
   },
   progress: {
     color: '#786F6F',
-    fontFamily: 'Lora-Medium',
     fontSize: 16,
     marginTop: 6,
     textAlign: 'center',
@@ -292,7 +287,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: '#786F6F',
-    fontFamily: 'Lora-Medium',
     fontSize: 15,
   },
   countdownBadge: {
@@ -303,7 +297,7 @@ const styles = StyleSheet.create({
     height: 52,
     width: 52,
   },
-  countdownText: { color: '#FFF', fontFamily: 'Lora-Bold', fontSize: 26 },
+  countdownText: { color: '#FFF', fontSize: 26 },
 
   faceGrid: {
     flexDirection: 'row',
@@ -330,7 +324,6 @@ const styles = StyleSheet.create({
   },
   nameText: {
     color: '#FFF',
-    fontFamily: 'Lora-Medium',
     fontSize: 13,
     textAlign: 'center',
   },
@@ -364,13 +357,12 @@ const styles = StyleSheet.create({
   },
   correctOption: { backgroundColor: '#DDEDDD', borderColor: '#2E7359' },
   incorrectOption: { backgroundColor: '#F8DEDE', borderColor: '#B85858' },
-  optionText: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 15, textAlign: 'center', paddingHorizontal: 6 },
+  optionText: { color: '#000', fontSize: 15, textAlign: 'center', paddingHorizontal: 6 },
   correctOptionText: { color: '#2E7359' },
   incorrectOptionText: { color: '#9B3E3E' },
 
   feedback: { alignItems: 'center', marginTop: 14 },
   feedbackText: {
-    fontFamily: 'Lora-Medium',
     fontSize: 16,
     lineHeight: 22,
     marginBottom: 10,
@@ -387,7 +379,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: '100%',
   },
-  primaryText: { color: '#FFF', fontFamily: 'Lora-Bold', fontSize: 18 },
+  primaryText: { color: '#FFF', fontSize: 18 },
   outlineButton: {
     alignItems: 'center',
     borderColor: '#2E7359',
@@ -398,13 +390,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     width: '100%',
   },
-  outlineText: { color: '#2E7359', fontFamily: 'Lora-Bold', fontSize: 18 },
+  outlineText: { color: '#2E7359', fontSize: 18 },
 
   // Result phase
   resultContent: { alignItems: 'center', paddingTop: 30, paddingBottom: 50 },
   resultEmoji: { fontSize: 58, marginBottom: 6 },
-  resultTitle: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 34, textAlign: 'center' },
-  resultScore: { color: '#2E7359', fontFamily: 'Lora-Bold', fontSize: 22, marginTop: 6, marginBottom: 20 },
+  resultTitle: { color: '#000', fontSize: 34, textAlign: 'center' },
+  resultScore: { color: '#2E7359', fontSize: 20, marginTop: 6, marginBottom: 20, textAlign: 'center', lineHeight: 28 },
 
   resultGrid: {
     flexDirection: 'row',
@@ -427,7 +419,6 @@ const styles = StyleSheet.create({
   resultFaceImage: { height: 120, width: '100%' },
   resultFaceName: {
     color: '#000',
-    fontFamily: 'Lora-Medium',
     fontSize: 13,
     marginTop: 6,
     textAlign: 'center',
@@ -435,14 +426,13 @@ const styles = StyleSheet.create({
   },
   resultWrongAnswer: {
     color: '#9B3E3E',
-    fontFamily: 'Lora-Medium',
     fontSize: 11,
     marginTop: 2,
     textAlign: 'center',
     paddingHorizontal: 4,
   },
-  resultTick: { color: '#2E7359', fontSize: 20, fontFamily: 'Lora-Bold', marginTop: 4 },
-  resultCross: { color: '#B85858', fontSize: 20, fontFamily: 'Lora-Bold', marginTop: 4 },
+  resultTick: { color: '#2E7359', fontSize: 20, marginTop: 4 },
+  resultCross: { color: '#B85858', fontSize: 20, marginTop: 4 },
 
   pressed: { opacity: 0.72 },
 });

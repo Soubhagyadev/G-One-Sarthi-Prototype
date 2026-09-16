@@ -3,6 +3,7 @@ import { ActivityIndicator, Animated, Easing, Image, Pressable, ScrollView, Styl
 import { SvgProps } from 'react-native-svg';
 import * as Speech from 'expo-speech';
 import Constants from 'expo-constants';
+import { useLanguage } from '../LanguageContext';
 
 // Lazy-load expo-speech-recognition so Expo Go doesn't crash at import time.
 // The native module only exists in custom/EAS builds, not in Expo Go.
@@ -40,6 +41,8 @@ export function VoiceScreen({
   onGames, onHome, onMonitor,
   streak, gamesCompleted, reminders, setReminders, dismissedReminders, patientName,
 }: VoiceScreenProps) {
+  const { t: tr, fontMedium, fontBold, headingStyle } = useLanguage();
+
   const [transcript, setTranscript] = useState('');
   const [answer, setAnswer] = useState('');
   const [loading, setLoading] = useState(false);
@@ -247,7 +250,7 @@ Rules:
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <Text style={styles.heading}>Ask{'\n'}Anything</Text>
+        <Text style={[styles.heading, { fontFamily: fontMedium, ...headingStyle(48, 56) }]}>{tr('askAnything')}</Text>
 
         {/* Mic illustration */}
         <Image
@@ -262,7 +265,7 @@ Rules:
           <View style={styles.micRow}>
             <Animated.View style={{ transform: [{ scale: pulse }] }}>
               <Pressable
-                accessibilityLabel={listening ? 'Stop listening' : 'Tap to speak'}
+                accessibilityLabel={listening ? tr('listeningStop') : tr('tapToSpeak')}
                 accessibilityRole="button"
                 onPress={listening ? stopListening : startListening}
                 style={({ pressed }) => [styles.micButton, listening && styles.micButtonActive, pressed && styles.pressed]}
@@ -270,30 +273,32 @@ Rules:
                 <Icon size={36} source={require('../SVG_Icons/Voice/Mic.svg')} />
               </Pressable>
             </Animated.View>
-            <Text style={styles.micLabel}>{listening ? 'Listening... tap to stop' : 'Tap to speak'}</Text>
+            <Text style={[styles.micLabel, { fontFamily: fontMedium }]}>
+              {listening ? tr('listeningStop') : tr('tapToSpeak')}
+            </Text>
           </View>
         )}
 
         {/* Live transcript while listening */}
         {listening && transcript !== '' && (
           <View style={styles.transcriptBubble}>
-            <Text style={styles.transcriptText}>{transcript}</Text>
+            <Text style={[styles.transcriptText, { fontFamily: fontMedium }]}>{transcript}</Text>
           </View>
         )}
 
         {/* Text input card */}
         <View style={styles.inputCard}>
           <TextInput
-            accessibilityLabel="Type your question"
+            accessibilityLabel={tr('typeQuestion')}
             multiline
             onChangeText={setTranscript}
-            placeholder="Or type your question here..."
+            placeholder={tr('typeQuestion')}
             placeholderTextColor="#B0A8A8"
-            style={styles.textInput}
+            style={[styles.textInput, { fontFamily: fontMedium }]}
             value={transcript}
           />
           <Pressable
-            accessibilityLabel="Ask question"
+            accessibilityLabel={tr('ask')}
             accessibilityRole="button"
             disabled={loading || !transcript.trim()}
             onPress={() => askGemini(transcript)}
@@ -301,7 +306,7 @@ Rules:
           >
             {loading
               ? <ActivityIndicator color="#FFF" size="small" />
-              : <Text style={styles.askButtonText}>Ask</Text>
+              : <Text style={[styles.askButtonText, { fontFamily: fontBold }]}>{tr('ask')}</Text>
             }
           </Pressable>
         </View>
@@ -309,15 +314,15 @@ Rules:
         {/* Answer card */}
         {answer !== '' && (
           <View style={styles.answerCard}>
-            <Text style={styles.answerText}>{answer}</Text>
+            <Text style={[styles.answerText, { fontFamily: fontMedium }]}>{answer}</Text>
             <Pressable
               accessibilityRole="button"
               onPress={speaking ? stopSpeaking : () => readAloud(answer)}
               style={({ pressed }) => [styles.speakButton, speaking && styles.speakButtonActive, pressed && styles.pressed]}
             >
               <Icon size={22} source={require('../SVG_Icons/Voice/Mic.svg')} />
-              <Text style={[styles.speakButtonText, speaking && styles.speakButtonTextActive]}>
-                {speaking ? 'Stop' : 'Read Aloud'}
+              <Text style={[styles.speakButtonText, speaking && styles.speakButtonTextActive, { fontFamily: fontBold }]}>
+                {speaking ? tr('stop') : tr('readAloud')}
               </Text>
             </Pressable>
           </View>
@@ -327,12 +332,10 @@ Rules:
         {!sttAvailable && (
           <View style={styles.comingSoonCard}>
             <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonBadgeText}>Coming Soon</Text>
+              <Text style={[styles.comingSoonBadgeText, { fontFamily: fontBold }]}>{tr('comingSoon')}</Text>
             </View>
-            <Text style={styles.comingSoonTitle}>Voice Input</Text>
-            <Text style={styles.comingSoonBody}>
-              Speak directly to G-One Sarthi in Assamese, Hindi, Bodo, or English. Requires a development build.
-            </Text>
+            <Text style={[styles.comingSoonTitle, { fontFamily: fontMedium }]}>{tr('voiceInputTitle')}</Text>
+            <Text style={[styles.comingSoonBody, { fontFamily: fontMedium }]}>{tr('voiceInputBody')}</Text>
           </View>
         )}
       </ScrollView>
@@ -345,28 +348,28 @@ Rules:
             </Text>
           </View>
           <View style={styles.toastTextBox}>
-            <Text style={styles.toastTitle}>Reminder Set!</Text>
-            <Text style={styles.toastSub}>{toast.label} · {toast.time}</Text>
+            <Text style={[styles.toastTitle, { fontFamily: fontBold }]}>{tr('toastReminderSet')}</Text>
+            <Text style={[styles.toastSub, { fontFamily: fontMedium }]}>{toast.label} · {toast.time}</Text>
           </View>
-          <Text style={styles.toastCheck}>✓</Text>
+          <Text style={[styles.toastCheck, { fontFamily: fontBold }]}>✓</Text>
         </Animated.View>
       )}
 
       <View style={styles.navigationBar}>
-        <NavItem icon={require('../SVG_Icons/Home/Home.svg')} label="Home" onPress={onHome} />
-        <NavItem icon={require('../SVG_Icons/Home/Controller.svg')} label="Games" onPress={onGames} />
-        <NavItem icon={require('../SVG_Icons/Home/Voice.svg')} label="Voice Chat" />
-        <NavItem icon={require('../SVG_Icons/Home/Health_For_Monitor.svg')} label="Monitor" onPress={onMonitor} />
+        <NavItem icon={require('../SVG_Icons/Home/Home.svg')} label={tr('navHome')} onPress={onHome} fontMedium={fontMedium} />
+        <NavItem icon={require('../SVG_Icons/Home/Controller.svg')} label={tr('navGames')} onPress={onGames} fontMedium={fontMedium} />
+        <NavItem icon={require('../SVG_Icons/Home/Voice.svg')} label={tr('navVoice')} fontMedium={fontMedium} />
+        <NavItem icon={require('../SVG_Icons/Home/Health_For_Monitor.svg')} label={tr('navMonitor')} onPress={onMonitor} fontMedium={fontMedium} />
       </View>
     </View>
   );
 }
 
-function NavItem({ icon, label, onPress }: { icon: SvgComponent; label: string; onPress?: () => void }) {
+function NavItem({ icon, label, onPress, fontMedium }: { icon: SvgComponent; label: string; onPress?: () => void; fontMedium: string }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}>
       <Icon size={34} source={icon} />
-      <Text style={styles.navLabel}>{label}</Text>
+      <Text style={[styles.navLabel, { fontFamily: fontMedium }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -374,7 +377,7 @@ function NavItem({ icon, label, onPress }: { icon: SvgComponent; label: string; 
 const styles = StyleSheet.create({
   container: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F9F6F0', left: -27, right: -27 },
   content: { paddingBottom: 120, paddingHorizontal: 22, paddingTop: 34 },
-  heading: { color: '#000000', fontFamily: 'Lora-Medium', fontSize: 48, letterSpacing: -1.8, lineHeight: 56 },
+  heading: { color: '#000000', fontSize: 48 },
   voiceImage: { alignSelf: 'center', borderRadius: 24, height: 150, marginTop: 16, width: 150 },
 
   // Mic button
@@ -393,7 +396,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   micButtonActive: { backgroundColor: '#B85858' },
-  micLabel: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 15 },
+  micLabel: { color: '#786F6F', fontSize: 15 },
 
   // Live transcript
   transcriptBubble: {
@@ -404,29 +407,29 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 14,
   },
-  transcriptText: { color: '#2E7359', fontFamily: 'Lora-Medium', fontSize: 16, lineHeight: 24 },
+  transcriptText: { color: '#2E7359', fontSize: 16, lineHeight: 24 },
 
   // Input card
   inputCard: { borderColor: 'rgba(0,0,0,0.25)', borderRadius: 25, borderWidth: 2, marginTop: 20, padding: 16 },
-  textInput: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 17, lineHeight: 26, minHeight: 70, textAlignVertical: 'top' },
+  textInput: { color: '#000', fontSize: 17, lineHeight: 26, minHeight: 70, textAlignVertical: 'top' },
   askButton: { alignItems: 'center', backgroundColor: '#2E7359', borderRadius: 12, height: 48, justifyContent: 'center', marginTop: 12 },
   askButtonDisabled: { backgroundColor: '#A8C9BC' },
-  askButtonText: { color: '#FFF', fontFamily: 'Lora-Bold', fontSize: 18 },
+  askButtonText: { color: '#FFF', fontSize: 18 },
 
   // Answer card
   answerCard: { alignItems: 'stretch', backgroundColor: '#E7EFE7', borderColor: '#2E7359', borderRadius: 25, borderWidth: 2, marginTop: 16, padding: 18 },
-  answerText: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 16, lineHeight: 26 },
+  answerText: { color: '#000', fontSize: 16, lineHeight: 26 },
   speakButton: { alignItems: 'center', alignSelf: 'stretch', borderColor: '#2E7359', borderRadius: 12, borderWidth: 1.5, flexDirection: 'row', gap: 8, justifyContent: 'center', marginTop: 14, paddingVertical: 10 },
   speakButtonActive: { backgroundColor: '#2E7359' },
-  speakButtonText: { color: '#2E7359', fontFamily: 'Lora-Bold', fontSize: 16 },
+  speakButtonText: { color: '#2E7359', fontSize: 16 },
   speakButtonTextActive: { color: '#FFFFFF' },
 
   // Coming soon
   comingSoonCard: { borderColor: 'rgba(0,0,0,0.25)', borderRadius: 25, borderWidth: 2, marginTop: 20, padding: 20 },
   comingSoonBadge: { alignSelf: 'flex-start', backgroundColor: '#FFE2CA', borderColor: 'rgba(0,0,0,0.15)', borderRadius: 20, borderWidth: 1, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 5 },
-  comingSoonBadgeText: { color: '#C47A2B', fontFamily: 'Lora-Bold', fontSize: 13 },
-  comingSoonTitle: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 20, marginBottom: 8 },
-  comingSoonBody: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 15, lineHeight: 22 },
+  comingSoonBadgeText: { color: '#C47A2B', fontSize: 13 },
+  comingSoonTitle: { color: '#000', fontSize: 20, marginBottom: 8 },
+  comingSoonBody: { color: '#786F6F', fontSize: 15, lineHeight: 22 },
 
   // Toast
   toast: {
@@ -457,13 +460,13 @@ const styles = StyleSheet.create({
   },
   toastIconText: { fontSize: 22 },
   toastTextBox: { flex: 1 },
-  toastTitle: { color: '#FFFFFF', fontFamily: 'Lora-Bold', fontSize: 15 },
-  toastSub: { color: 'rgba(255,255,255,0.8)', fontFamily: 'Lora-Medium', fontSize: 13, marginTop: 2 },
-  toastCheck: { color: '#FFFFFF', fontFamily: 'Lora-Bold', fontSize: 22 },
+  toastTitle: { color: '#FFFFFF', fontSize: 15 },
+  toastSub: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 2 },
+  toastCheck: { color: '#FFFFFF', fontSize: 22 },
 
   // Nav
-  navigationBar: { alignItems: 'center', backgroundColor: '#2E7359', borderRadius: 50, bottom: 20, flexDirection: 'row', height: 78, justifyContent: 'space-around', left: 22, position: 'absolute', right: 22 },
+  navigationBar: { alignItems: 'center', backgroundColor: '#2E7359', borderRadius: 50, bottom: 20, flexDirection: 'row', height: 78, justifyContent: 'space-around', left: 22, position: 'absolute', right: 22, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 14, elevation: 12 },
   navItem: { alignItems: 'center', minWidth: 55 },
-  navLabel: { color: '#FFFFFF', fontFamily: 'Lora-Medium', fontSize: 11, marginTop: 2 },
+  navLabel: { color: '#FFFFFF', fontSize: 11, marginTop: 2 },
   pressed: { opacity: 0.72 },
 });

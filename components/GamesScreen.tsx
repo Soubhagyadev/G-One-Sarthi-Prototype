@@ -1,5 +1,6 @@
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SvgProps } from 'react-native-svg';
+import { useLanguage } from '../LanguageContext';
 
 type SvgComponent = (props: SvgProps) => JSX.Element | null;
 
@@ -19,71 +20,78 @@ type GamesScreenProps = {
   onVoice: () => void;
 };
 
-const games = [
-  {
-    title: 'Travel Rating',
-    subtitle: 'Emotion recognition / social cognition',
-    icon: require('../SVG_Icons/Games/Eye_Svg.svg'),
-    size: 104,
-    difficulty: 'Easy' as const,
-    difficultyColor: '#4A9E6B',
-  },
-  {
-    title: 'Match Pairs',
-    subtitle: 'Helps with the memory',
-    icon: require('../SVG_Icons/Games/Frame_Icon_Svg.svg'),
-    size: 82,
-    difficulty: 'Medium' as const,
-    difficultyColor: '#C47A2B',
-  },
-  {
-    title: 'Pack Your Bags',
-    subtitle: 'Pattern Recognition',
-    icon: require('../SVG_Icons/Games/Backpack.svg'),
-    size: 88,
-    difficulty: 'Medium' as const,
-    difficultyColor: '#C47A2B',
-  },
-  {
-    title: 'Watch The Tray',
-    subtitle: 'Memory',
-    icon: require('../SVG_Icons/Games/Basket_icon_Svg (1).svg'),
-    size: 82,
-    difficulty: 'Hard' as const,
-    difficultyColor: '#B85858',
-  },
-  {
-    title: 'People Face',
-    subtitle: 'Recognition',
-    icon: require('../SVG_Icons/Games/Landscape_Icon_Svg.svg'),
-    size: 84,
-    difficulty: 'Hard' as const,
-    difficultyColor: '#B85858',
-  },
-];
-
 export function GamesScreen({ onHome, onMatchPairs, onMonitor, onPackYourBags, onTravelPattern, onVoice, onWatchTheTray, onPeopleFace }: GamesScreenProps) {
+  const { t: tr, fontMedium, fontBold, headingStyle } = useLanguage();
+
+  const games = [
+    {
+      title: tr('gameTravelRating'),
+      subtitle: tr('gameTravelSubtitle'),
+      icon: require('../SVG_Icons/Games/Eye_Svg.svg'),
+      size: 104,
+      difficulty: 'Easy' as const,
+      difficultyColor: '#4A9E6B',
+      onPress: onTravelPattern,
+    },
+    {
+      title: tr('gameMatchPairs'),
+      subtitle: tr('gameMatchSubtitle'),
+      icon: require('../SVG_Icons/Games/Frame_Icon_Svg.svg'),
+      size: 82,
+      difficulty: 'Medium' as const,
+      difficultyColor: '#C47A2B',
+      onPress: onMatchPairs,
+    },
+    {
+      title: tr('gamePackBags'),
+      subtitle: tr('gamePackSubtitle'),
+      icon: require('../SVG_Icons/Games/Backpack.svg'),
+      size: 88,
+      difficulty: 'Medium' as const,
+      difficultyColor: '#C47A2B',
+      onPress: onPackYourBags,
+    },
+    {
+      title: tr('gameWatchTray'),
+      subtitle: tr('gameWatchSubtitle'),
+      icon: require('../SVG_Icons/Games/Basket_icon_Svg (1).svg'),
+      size: 82,
+      difficulty: 'Hard' as const,
+      difficultyColor: '#B85858',
+      onPress: onWatchTheTray,
+    },
+    {
+      title: tr('gamePeopleFace'),
+      subtitle: tr('gamePeopleSubtitle'),
+      icon: require('../SVG_Icons/Games/Landscape_Icon_Svg.svg'),
+      size: 84,
+      difficulty: 'Hard' as const,
+      difficultyColor: '#B85858',
+      onPress: onPeopleFace,
+    },
+  ];
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.heading}>Games Curated{`\n`}Just For You</Text>
+        <Text style={[styles.heading, { fontFamily: fontMedium, ...headingStyle(46, 59) }]}>{tr('gamesCurated')}</Text>
         <View style={styles.gameList}>
           {games.map((game) => (
             <Pressable
               accessibilityLabel={`Play ${game.title}`}
               accessibilityRole="button"
               key={game.title}
-              onPress={game.title === 'Travel Rating' ? onTravelPattern : game.title === 'Match Pairs' ? onMatchPairs : game.title === 'Pack Your Bags' ? onPackYourBags : game.title === 'Watch The Tray' ? onWatchTheTray : game.title === 'People Face' ? onPeopleFace : () => Alert.alert(game.title, 'This game will begin shortly.')}
+              onPress={game.onPress ?? (() => Alert.alert(game.title, 'This game will begin shortly.'))}
               style={({ pressed }) => [styles.gameCard, pressed && styles.pressed]}
             >
               <View style={styles.iconArea}>
                 <Icon size={game.size} source={game.icon} />
               </View>
               <View style={styles.gameCopy}>
-                <Text style={styles.gameTitle}>{game.title}</Text>
-                <Text style={styles.gameSubtitle}>{game.subtitle}</Text>
+                <Text style={[styles.gameTitle, { fontFamily: fontMedium }]}>{game.title}</Text>
+                <Text style={[styles.gameSubtitle, { fontFamily: fontMedium }]}>{game.subtitle}</Text>
                 <View style={[styles.difficultyBadge, { backgroundColor: game.difficultyColor + '22', borderColor: game.difficultyColor }]}>
-                  <Text style={[styles.difficultyText, { color: game.difficultyColor }]}>
+                  <Text style={[styles.difficultyText, { color: game.difficultyColor, fontFamily: fontBold }]}>
                     {game.difficulty === 'Easy' ? '★☆☆' : game.difficulty === 'Medium' ? '★★☆' : '★★★'} {game.difficulty}
                   </Text>
                 </View>
@@ -94,20 +102,20 @@ export function GamesScreen({ onHome, onMatchPairs, onMonitor, onPackYourBags, o
       </ScrollView>
 
       <View style={styles.navigationBar}>
-        <NavItem icon={require('../SVG_Icons/Home/Home.svg')} label="Home" onPress={onHome} />
-        <NavItem icon={require('../SVG_Icons/Home/Controller.svg')} label="Games" />
-        <NavItem icon={require('../SVG_Icons/Home/Voice.svg')} label="Voice Chat" onPress={onVoice} />
-        <NavItem icon={require('../SVG_Icons/Home/Health_For_Monitor.svg')} label="Monitor" onPress={onMonitor} />
+        <NavItem icon={require('../SVG_Icons/Home/Home.svg')} label={tr('navHome')} onPress={onHome} fontMedium={fontMedium} />
+        <NavItem icon={require('../SVG_Icons/Home/Controller.svg')} label={tr('navGames')} fontMedium={fontMedium} />
+        <NavItem icon={require('../SVG_Icons/Home/Voice.svg')} label={tr('navVoice')} onPress={onVoice} fontMedium={fontMedium} />
+        <NavItem icon={require('../SVG_Icons/Home/Health_For_Monitor.svg')} label={tr('navMonitor')} onPress={onMonitor} fontMedium={fontMedium} />
       </View>
     </View>
   );
 }
 
-function NavItem({ icon, label, onPress }: { icon: SvgComponent; label: string; onPress?: () => void }) {
+function NavItem({ icon, label, onPress, fontMedium }: { icon: SvgComponent; label: string; onPress?: () => void; fontMedium: string }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}>
       <Icon size={34} source={icon} />
-      <Text style={styles.navLabel}>{label}</Text>
+      <Text style={[styles.navLabel, { fontFamily: fontMedium }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -126,10 +134,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     color: '#000000',
-    fontFamily: 'Lora-Medium',
     fontSize: 46,
-    letterSpacing: -1.8,
-    lineHeight: 59,
   },
   gameList: {
     gap: 20,
@@ -155,13 +160,11 @@ const styles = StyleSheet.create({
   },
   gameTitle: {
     color: '#000000',
-    fontFamily: 'Lora-Medium',
     fontSize: 20,
     textAlign: 'center',
   },
   gameSubtitle: {
     color: '#000000',
-    fontFamily: 'Lora-Medium',
     fontSize: 11,
     marginTop: 3,
     textAlign: 'center',
@@ -175,7 +178,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   difficultyText: {
-    fontFamily: 'Lora-Bold',
     fontSize: 11,
   },
   navigationBar: {
@@ -189,6 +191,11 @@ const styles = StyleSheet.create({
     left: 22,
     position: 'absolute',
     right: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 12,
   },
   navItem: {
     alignItems: 'center',
@@ -196,7 +203,6 @@ const styles = StyleSheet.create({
   },
   navLabel: {
     color: '#FFFFFF',
-    fontFamily: 'Lora-Medium',
     fontSize: 11,
     marginTop: 2,
   },

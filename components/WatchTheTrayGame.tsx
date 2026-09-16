@@ -1,18 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLanguage } from '../LanguageContext';
 
 // ─── Asset map ───────────────────────────────────────────────────────────────
 
 const ITEMS = [
-  { key: 'bottle',     label: 'Bottle',      image: require('../app_image/Games/Watch_Tray/Bottle.png') },
-  { key: 'carpet',     label: 'Carpet',      image: require('../app_image/Games/Watch_Tray/Carpet.png') },
-  { key: 'cup',        label: 'Cup',         image: require('../app_image/Games/Watch_Tray/Cup.png') },
-  { key: 'jute_bag',   label: 'Jute Bag',    image: require('../app_image/Games/Watch_Tray/Jute_bag.png') },
-  { key: 'rice',       label: 'Rice',        image: require('../app_image/Games/Watch_Tray/Rice.png') },
-  { key: 'shawl',      label: 'Shawl',       image: require('../app_image/Games/Watch_Tray/Shawl (1).png') },
-  { key: 'spinach',    label: 'Spinach',     image: require('../app_image/Games/Watch_Tray/Spinach.png') },
+  { key: 'bottle',       label: 'Bottle',   image: require('../app_image/Games/Watch_Tray/Bottle.png') },
+  { key: 'carpet',       label: 'Carpet',   image: require('../app_image/Games/Watch_Tray/Carpet.png') },
+  { key: 'cup',          label: 'Cup',      image: require('../app_image/Games/Watch_Tray/Cup.png') },
+  { key: 'jute_bag',     label: 'Jute Bag', image: require('../app_image/Games/Watch_Tray/Jute_bag.png') },
+  { key: 'rice',         label: 'Rice',     image: require('../app_image/Games/Watch_Tray/Rice.png') },
+  { key: 'shawl',        label: 'Shawl',    image: require('../app_image/Games/Watch_Tray/Shawl (1).png') },
+  { key: 'spinach',      label: 'Spinach',  image: require('../app_image/Games/Watch_Tray/Spinach.png') },
   { key: 'steel_tiffin', label: 'Tiffin',   image: require('../app_image/Games/Watch_Tray/Steel_Tiffin.png') },
-  { key: 'umbrella',   label: 'Umbrella',    image: require('../app_image/Games/Watch_Tray/Umbrella.png') },
+  { key: 'umbrella',     label: 'Umbrella', image: require('../app_image/Games/Watch_Tray/Umbrella.png') },
 ] as const;
 
 type ItemKey = typeof ITEMS[number]['key'];
@@ -20,9 +21,9 @@ type ItemKey = typeof ITEMS[number]['key'];
 // ─── Difficulty config ────────────────────────────────────────────────────────
 
 const LEVELS = [
-  { label: 'Easy',   trayCount: 3, showSeconds: 5 },
-  { label: 'Medium', trayCount: 5, showSeconds: 5 },
-  { label: 'Hard',   trayCount: 7, showSeconds: 4 },
+  { labelKey: 'easy' as const,   trayCount: 3, showSeconds: 5 },
+  { labelKey: 'medium' as const, trayCount: 5, showSeconds: 5 },
+  { labelKey: 'hard' as const,   trayCount: 7, showSeconds: 4 },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -40,7 +41,6 @@ function buildRound(trayCount: number): { trayKeys: ItemKey[]; choiceKeys: ItemK
   const shuffled = shuffle([...ITEMS]);
   const trayItems = shuffled.slice(0, trayCount);
   const trayKeys = trayItems.map((i) => i.key);
-  // Choices = tray items + same number of distractors, all shuffled
   const distractors = shuffled.slice(trayCount, trayCount * 2).map((i) => i.key);
   const choiceKeys = shuffle([...trayKeys, ...distractors]) as ItemKey[];
   return { trayKeys, choiceKeys };
@@ -48,7 +48,7 @@ function buildRound(trayCount: number): { trayKeys: ItemKey[]; choiceKeys: ItemK
 
 // ─── Countdown flash ─────────────────────────────────────────────────────────
 
-function CountdownBadge({ seconds }: { seconds: number }) {
+function CountdownBadge({ seconds, fontBold }: { seconds: number; fontBold: string }) {
   const scale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.sequence([
@@ -58,7 +58,7 @@ function CountdownBadge({ seconds }: { seconds: number }) {
   }, [seconds]);
   return (
     <Animated.View style={[styles.countdownBadge, { transform: [{ scale }] }]}>
-      <Text style={styles.countdownText}>{seconds}</Text>
+      <Text style={[styles.countdownText, { fontFamily: fontBold }]}>{seconds}</Text>
     </Animated.View>
   );
 }
@@ -70,6 +70,7 @@ type Phase = 'level-select' | 'memorise' | 'recall' | 'result';
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; onComplete?: () => void }) {
+  const { t: tr, fontMedium, fontBold } = useLanguage();
   const [phase, setPhase] = useState<Phase>('level-select');
   const [levelIndex, setLevelIndex] = useState(0);
   const [trayKeys, setTrayKeys] = useState<ItemKey[]>([]);
@@ -79,7 +80,6 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
   const [score, setScore] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Cleans up any running timer
   const clearTimer = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   };
@@ -120,7 +120,6 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
     setPhase('result');
   };
 
-  // Cleanup on unmount
   useEffect(() => () => clearTimer(), []);
 
   // ── Level select ──
@@ -128,24 +127,24 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
     return (
       <View style={styles.container}>
         <Pressable accessibilityRole="button" onPress={onExit} style={styles.backButton}>
-          <Text style={styles.backText}>‹ Games</Text>
+          <Text style={[styles.backText, { fontFamily: fontMedium }]}>‹ {tr('backToGames')}</Text>
         </Pressable>
-        <Text style={styles.heading}>Watch The Tray</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.heading, { fontFamily: fontMedium }]}>{tr('watchTrayTitle')}</Text>
+        <Text style={[styles.subtitle, { fontFamily: fontMedium }]}>
           Study the objects on the tray, then pick them out after they disappear.
         </Text>
-        <Text style={styles.chooseDifficulty}>Choose Difficulty</Text>
+        <Text style={[styles.chooseDifficulty, { fontFamily: fontMedium }]}>{tr('chooseDifficulty')}</Text>
         <View style={styles.levelList}>
           {LEVELS.map((level, idx) => (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Start ${level.label} difficulty`}
-              key={level.label}
+              accessibilityLabel={`Start ${tr(level.labelKey)} difficulty`}
+              key={level.labelKey}
               onPress={() => startRound(idx)}
               style={({ pressed }) => [styles.levelCard, pressed && styles.pressed]}
             >
-              <Text style={styles.levelLabel}>{level.label}</Text>
-              <Text style={styles.levelMeta}>
+              <Text style={[styles.levelLabel, { fontFamily: fontMedium }]}>{tr(level.labelKey)}</Text>
+              <Text style={[styles.levelMeta, { fontFamily: fontMedium }]}>
                 {level.trayCount} objects · {level.showSeconds}s to memorise
               </Text>
             </Pressable>
@@ -159,16 +158,16 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
   if (phase === 'memorise') {
     return (
       <View style={styles.container}>
-        <Text style={styles.heading}>Remember These!</Text>
-        <Text style={styles.subtitle}>Study the tray carefully…</Text>
-        <CountdownBadge seconds={countdown} />
+        <Text style={[styles.heading, { fontFamily: fontMedium }]}>{tr('memoriseItems')}</Text>
+        <Text style={[styles.subtitle, { fontFamily: fontMedium }]}>Study the tray carefully…</Text>
+        <CountdownBadge seconds={countdown} fontBold={fontBold} />
         <View style={styles.trayGrid}>
           {trayKeys.map((key) => {
             const item = ITEMS.find((i) => i.key === key)!;
             return (
               <View key={key} style={styles.trayCard}>
                 <Image resizeMode="contain" source={item.image} style={styles.trayImage} />
-                <Text style={styles.trayLabel}>{item.label}</Text>
+                <Text style={[styles.trayLabel, { fontFamily: fontMedium }]}>{item.label}</Text>
               </View>
             );
           })}
@@ -184,8 +183,8 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
     return (
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.recallContent} showsVerticalScrollIndicator={false}>
-          <Text style={styles.heading}>What Was On The Tray?</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.heading, { fontFamily: fontMedium }]}>{tr('selectItems')}</Text>
+          <Text style={[styles.subtitle, { fontFamily: fontMedium }]}>
             Tap the {level.trayCount} objects you saw · {selected.length}/{level.trayCount} chosen
           </Text>
           <View style={styles.choiceGrid}>
@@ -205,7 +204,7 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
                   ]}
                 >
                   <Image resizeMode="contain" source={item.image} style={styles.choiceImage} />
-                  <Text style={[styles.choiceLabel, isSelected && styles.choiceLabelSelected]}>
+                  <Text style={[styles.choiceLabel, isSelected && styles.choiceLabelSelected, { fontFamily: fontMedium }]}>
                     {item.label}
                   </Text>
                 </Pressable>
@@ -218,7 +217,7 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
             onPress={submitAnswer}
             style={[styles.submitButton, !ready && styles.submitDisabled]}
           >
-            <Text style={styles.submitText}>Submit</Text>
+            <Text style={[styles.submitText, { fontFamily: fontBold }]}>{tr('submit')}</Text>
           </Pressable>
         </ScrollView>
       </View>
@@ -236,23 +235,23 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.resultContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.resultEmoji}>{perfect ? '🎉' : score >= Math.ceil(total / 2) ? '👍' : '💪'}</Text>
-        <Text style={styles.resultTitle}>
+        <Text style={[styles.resultTitle, { fontFamily: fontMedium }]}>
           {perfect ? 'Perfect Memory!' : score >= Math.ceil(total / 2) ? 'Well Done!' : 'Keep Practising!'}
         </Text>
-        <Text style={styles.resultScore}>
+        <Text style={[styles.resultScore, { fontFamily: fontBold }]}>
           {correct} of {total} correct
         </Text>
 
         {missed.length > 0 && (
           <>
-            <Text style={styles.resultSectionLabel}>You missed:</Text>
+            <Text style={[styles.resultSectionLabel, { fontFamily: fontMedium }]}>You missed:</Text>
             <View style={styles.resultRow}>
               {missed.map((key) => {
                 const item = ITEMS.find((i) => i.key === key)!;
                 return (
                   <View key={key} style={[styles.resultThumb, styles.resultMissed]}>
                     <Image resizeMode="contain" source={item.image} style={styles.resultThumbImage} />
-                    <Text style={styles.resultThumbLabel}>{item.label}</Text>
+                    <Text style={[styles.resultThumbLabel, { fontFamily: fontMedium }]}>{item.label}</Text>
                   </View>
                 );
               })}
@@ -262,14 +261,14 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
 
         {wrong.length > 0 && (
           <>
-            <Text style={styles.resultSectionLabel}>Not on the tray:</Text>
+            <Text style={[styles.resultSectionLabel, { fontFamily: fontMedium }]}>Not on the tray:</Text>
             <View style={styles.resultRow}>
               {wrong.map((key) => {
                 const item = ITEMS.find((i) => i.key === key)!;
                 return (
                   <View key={key} style={[styles.resultThumb, styles.resultWrong]}>
                     <Image resizeMode="contain" source={item.image} style={styles.resultThumbImage} />
-                    <Text style={styles.resultThumbLabel}>{item.label}</Text>
+                    <Text style={[styles.resultThumbLabel, { fontFamily: fontMedium }]}>{item.label}</Text>
                   </View>
                 );
               })}
@@ -282,21 +281,21 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
           onPress={() => startRound(levelIndex)}
           style={styles.primaryButton}
         >
-          <Text style={styles.primaryText}>Play Again</Text>
+          <Text style={[styles.primaryText, { fontFamily: fontBold }]}>{tr('playAgain')}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={() => setPhase('level-select')}
           style={styles.outlineButton}
         >
-          <Text style={styles.outlineText}>Change Difficulty</Text>
+          <Text style={[styles.outlineText, { fontFamily: fontBold }]}>{tr('chooseDifficulty')}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={onExit}
           style={styles.outlineButton}
         >
-          <Text style={styles.outlineText}>Back To Games</Text>
+          <Text style={[styles.outlineText, { fontFamily: fontBold }]}>{tr('backToGames')}</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -314,20 +313,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   backButton: { alignSelf: 'flex-start', marginTop: 25, paddingVertical: 10 },
-  backText: { color: '#2E7359', fontFamily: 'Lora-Medium', fontSize: 18 },
+  backText: { color: '#2E7359', fontSize: 18 },
 
   heading: {
     color: '#000',
-    fontFamily: 'Lora-Medium',
     fontSize: 36,
-    letterSpacing: -1.2,
-    lineHeight: 45,
     textAlign: 'center',
     marginTop: 20,
   },
   subtitle: {
     color: '#786F6F',
-    fontFamily: 'Lora-Medium',
     fontSize: 15,
     marginTop: 6,
     textAlign: 'center',
@@ -337,7 +332,6 @@ const styles = StyleSheet.create({
   // Level select
   chooseDifficulty: {
     color: '#000',
-    fontFamily: 'Lora-Medium',
     fontSize: 20,
     marginTop: 36,
     marginBottom: 12,
@@ -350,8 +344,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 18,
   },
-  levelLabel: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 24 },
-  levelMeta: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 14, marginTop: 2 },
+  levelLabel: { color: '#000', fontSize: 24 },
+  levelMeta: { color: '#786F6F', fontSize: 14, marginTop: 2 },
 
   // Memorise phase
   countdownBadge: {
@@ -365,7 +359,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 20,
   },
-  countdownText: { color: '#FFF', fontFamily: 'Lora-Bold', fontSize: 32 },
+  countdownText: { color: '#FFF', fontSize: 32 },
   trayGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -383,7 +377,7 @@ const styles = StyleSheet.create({
     width: '30%',
   },
   trayImage: { height: 80, width: '90%' },
-  trayLabel: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 12, marginTop: 6, textAlign: 'center' },
+  trayLabel: { color: '#000', fontSize: 12, marginTop: 6, textAlign: 'center' },
 
   // Recall phase
   recallContent: { paddingBottom: 40, paddingTop: 20 },
@@ -409,7 +403,7 @@ const styles = StyleSheet.create({
     borderWidth: 2.5,
   },
   choiceImage: { height: 72, width: '90%' },
-  choiceLabel: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 11, marginTop: 5, textAlign: 'center' },
+  choiceLabel: { color: '#000', fontSize: 11, marginTop: 5, textAlign: 'center' },
   choiceLabelSelected: { color: '#2E7359' },
 
   submitButton: {
@@ -421,17 +415,16 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   submitDisabled: { backgroundColor: '#A8C9BC' },
-  submitText: { color: '#FFF', fontFamily: 'Lora-Bold', fontSize: 20 },
+  submitText: { color: '#FFF', fontSize: 20 },
 
   // Result phase
   resultContent: { alignItems: 'center', paddingBottom: 50, paddingTop: 30 },
   resultEmoji: { fontSize: 62, marginBottom: 8 },
-  resultTitle: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 32, textAlign: 'center' },
-  resultScore: { color: '#2E7359', fontFamily: 'Lora-Bold', fontSize: 22, marginTop: 8 },
+  resultTitle: { color: '#000', fontSize: 32, textAlign: 'center' },
+  resultScore: { color: '#2E7359', fontSize: 22, marginTop: 8 },
   resultSectionLabel: {
     alignSelf: 'flex-start',
     color: '#786F6F',
-    fontFamily: 'Lora-Medium',
     fontSize: 15,
     marginTop: 20,
     marginBottom: 8,
@@ -447,7 +440,7 @@ const styles = StyleSheet.create({
   resultMissed: { backgroundColor: '#FFF3E0', borderColor: '#E0A050' },
   resultWrong: { backgroundColor: '#FDECEA', borderColor: '#E07070' },
   resultThumbImage: { height: 60, width: '85%' },
-  resultThumbLabel: { color: '#000', fontFamily: 'Lora-Medium', fontSize: 11, marginTop: 4, textAlign: 'center' },
+  resultThumbLabel: { color: '#000', fontSize: 11, marginTop: 4, textAlign: 'center' },
 
   primaryButton: {
     alignItems: 'center',
@@ -458,7 +451,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     width: '100%',
   },
-  primaryText: { color: '#FFF', fontFamily: 'Lora-Bold', fontSize: 18 },
+  primaryText: { color: '#FFF', fontSize: 18 },
   outlineButton: {
     alignItems: 'center',
     borderColor: '#2E7359',
@@ -469,6 +462,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     width: '100%',
   },
-  outlineText: { color: '#2E7359', fontFamily: 'Lora-Bold', fontSize: 18 },
+  outlineText: { color: '#2E7359', fontSize: 18 },
   pressed: { opacity: 0.72 },
 });

@@ -1,6 +1,7 @@
-import { Alert, Animated, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Linking, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRef, useState } from 'react';
 import { SvgProps } from 'react-native-svg';
+import { useLanguage } from '../LanguageContext';
 
 // Genuine NE India motivational quotes in local languages, relevant to memory & daily life
 // Sourced from Assamese, Meitei (Manipuri), Bodo, and Nagaland oral traditions
@@ -31,7 +32,7 @@ const NE_QUOTES = [
     language: 'Assamese',
   },
   {
-    text: 'বাट হেৰুৱালেও, ঘৰৰ বাট সদায় হৃদয়ত থাকে।',
+    text: 'বাট হেৰুৱালেও, ঘৰৰ বাট সদায় হৃদয়ত থাকে।',
     translation: 'Even if the road is forgotten, the way home always stays in the heart.',
     language: 'Assamese',
   },
@@ -54,14 +55,6 @@ function HomeIcon({ source, size }: { source: SvgComponent | { default: SvgCompo
   return <SvgIcon width={size} height={size} />;
 }
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return 'Good Morning';
-  if (hour >= 12 && hour < 17) return 'Good Afternoon';
-  if (hour >= 17 && hour < 21) return 'Good Evening';
-  return 'Good Night';
-}
-
 function getFormattedDate(): string {
   const now = new Date();
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -78,7 +71,7 @@ function getFormattedDate(): string {
   return `Today Is ${day} ${date}${suffix} ${month}`;
 }
 
-export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalReminders, onGames, onMonitor, onVoice, onRandomGame, nextReminder, onDismissReminder, caregiverPhone }: {
+export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalReminders, onGames, onMonitor, onVoice, onRandomGame, nextReminder, onDismissReminder, caregiverPhone, onLanguageChange }: {
   name: string;
   streak: number;
   gamesCompleted: number;
@@ -91,7 +84,20 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
   nextReminder: { id: string; label: string; time: string; icon: 'medicine' | 'water' | 'walk' } | null;
   onDismissReminder: (id: string) => void;
   caregiverPhone?: string;
+  onLanguageChange: (lang: string) => void;
 }) {
+  const { t: tr, fontMedium, fontBold, headingStyle, language } = useLanguage();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  function getGreeting(): string {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return tr('goodMorning');
+    if (hour >= 12 && hour < 17) return tr('goodAfternoon');
+    if (hour >= 17 && hour < 21) return tr('goodEvening');
+    return tr('goodNight');
+  }
+
   const dailyIndex = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
   ) % NE_QUOTES.length;
@@ -135,69 +141,84 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
   const handleSOS = () => {
     const phone = caregiverPhone || '112'; // 112 is India's national emergency number
     Alert.alert(
-      '🚨 Emergency SOS',
-      `Call ${phone === '112' ? 'Emergency Services (112)' : 'your caregiver'} now?`,
+      tr('sosConfirmTitle'),
+      tr('sosConfirmMessage', phone),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr('cancel'), style: 'cancel' },
         {
-          text: 'Call Now',
+          text: tr('callNow'),
           style: 'destructive',
           onPress: () => Linking.openURL(`tel:${phone}`),
         },
       ]
     );
   };
+
   return (
     <View style={styles.container}>
+      {/* Settings button — top right */}
+      <Pressable
+        accessibilityLabel="Open settings"
+        accessibilityRole="button"
+        onPress={() => setSettingsOpen(true)}
+        style={({ pressed }) => [styles.settingsButton, pressed && styles.pressed]}
+      >
+        <HomeIcon size={28} source={require('../SVG_Icons/Settings_Icon.svg')} />
+      </Pressable>
+
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.greeting}>{getGreeting()},{`\n`}{name || 'Amma'}</Text>
-        <Text style={styles.date}>{getFormattedDate()}</Text>
+        <Text style={[styles.greeting, { fontFamily: fontMedium, ...headingStyle(48, 61) }]}>{getGreeting()},{`\n`}{name || 'Amma'}</Text>
+        <Text style={[styles.date, { fontFamily: fontMedium }]}>{getFormattedDate()}</Text>
 
         <View style={styles.streakCard}>
           <HomeIcon size={34} source={require('../SVG_Icons/Home/Fire_Icon.svg')} />
-          <Text style={styles.streakText}>
-            {streak === 1
-              ? 'You Have Been Playing For 1 Day'
-              : `You Have Been Playing For ${streak} Days`}
+          <Text style={[styles.streakText, { fontFamily: fontMedium }]}>
+            {tr('streakDays', streak)}
           </Text>
         </View>
 
         <View style={styles.performanceCard}>
-          <Text style={styles.sectionTitle}>Your Performance</Text>
-          <Text style={styles.sectionSubtitle}>A Little Progress Makes a Big Difference</Text>
+          <Text style={[styles.sectionTitle, { fontFamily: fontMedium }]}>{tr('yourPerformance')}</Text>
+          <Text style={[styles.sectionSubtitle, { fontFamily: fontMedium }]}>{tr('littleProgress')}</Text>
           <View style={styles.progressRow}>
             <PerformanceTile
-              caption="Memory Games"
+              caption={tr('memoryGames')}
               completed={`${gamesCompleted}/5`}
+              completedLabel={tr('completed')}
               icon={require('../SVG_Icons/Home/Brain_Svg.svg')}
               tint="#E7EFE7"
+              fontMedium={fontMedium}
+              fontBold={fontBold}
             />
             <PerformanceTile
-              caption="Reminders Set"
+              caption={tr('remindersSet')}
               completed={totalReminders === 0 ? 'None' : `${remindersSet}/${totalReminders}`}
+              completedLabel={tr('completed')}
               icon={require('../SVG_Icons/Home/Water_Drop.svg')}
               tint="#E2EFF4"
+              fontMedium={fontMedium}
+              fontBold={fontBold}
             />
           </View>
           <View style={styles.encouragement}>
             <HomeIcon size={52} source={require('../SVG_Icons/Home/Smiling_Svg.svg')} />
-            <Text style={styles.encouragementText}>You are doing well keep it up!!</Text>
+            <Text style={[styles.encouragementText, { fontFamily: fontMedium }]}>{tr('doingWell')}</Text>
           </View>
         </View>
 
         <View style={styles.exerciseCard}>
-          <Text style={styles.sectionTitle}>Today’s Game Exercise For You</Text>
+          <Text style={[styles.sectionTitle, { fontFamily: fontMedium }]}>{tr('todaysGame')}</Text>
           <Pressable
             accessibilityRole="button"
             onPress={onRandomGame}
             style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}
           >
-            <Text style={styles.playText}>▶ Play</Text>
+            <Text style={[styles.playText, { fontFamily: fontBold }]}>{tr('play')}</Text>
           </Pressable>
         </View>
 
         <View style={styles.reminderCard}>
-          <Text style={styles.sectionTitle}>Reminders</Text>
+          <Text style={[styles.sectionTitle, { fontFamily: fontMedium }]}>{tr('reminders')}</Text>
           {nextReminder ? (
             <View style={styles.reminderLine}>
               <HomeIcon
@@ -210,18 +231,18 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
                     : require('../SVG_Icons/Home/Medicine_Svg.svg')
                 }
               />
-              <Text style={styles.reminderText}>{nextReminder.time}  {nextReminder.label}</Text>
+              <Text style={[styles.reminderText, { fontFamily: fontMedium }]}>{nextReminder.time}  {nextReminder.label}</Text>
               <Pressable
                 accessibilityLabel="Mark reminder as done"
                 accessibilityRole="checkbox"
                 onPress={() => onDismissReminder(nextReminder.id)}
                 style={({ pressed }) => [styles.checkBox, pressed && styles.pressed]}
               >
-                <Text style={styles.checkMark}>✓</Text>
+                <Text style={[styles.checkMark, { fontFamily: fontBold }]}>✓</Text>
               </Pressable>
             </View>
           ) : (
-            <Text style={styles.noReminderText}>No upcoming reminders for today.</Text>
+            <Text style={[styles.noReminderText, { fontFamily: fontMedium }]}>{tr('noReminders')}</Text>
           )}
         </View>
 
@@ -233,11 +254,11 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
         >
           <Animated.View style={[styles.quoteCard, { transform: [{ rotateY: flipRotate }, { scale: flipScale }] }]}>
             <View style={styles.quoteBadge}>
-              <Text style={styles.quoteBadgeText}>{quote.language}</Text>
+              <Text style={[styles.quoteBadgeText, { fontFamily: fontBold }]}>{quote.language}</Text>
             </View>
-            <Text style={styles.quoteText}>{quote.text}</Text>
-            <Text style={styles.quoteTranslation}>"{quote.translation}"</Text>
-            <Text style={styles.quoteTapHint}>Tap for another quote ↻</Text>
+            <Text style={[styles.quoteText, { fontFamily: fontMedium }]}>{quote.text}</Text>
+            <Text style={[styles.quoteTranslation, { fontFamily: fontMedium }]}>"{quote.translation}"</Text>
+            <Text style={[styles.quoteTapHint, { fontFamily: fontMedium }]}>{tr('tapForQuote')}</Text>
           </Animated.View>
         </Pressable>
 
@@ -249,17 +270,76 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
           style={({ pressed }) => [styles.sosButton, pressed && styles.sosPressed]}
         >
           <View>
-            <Text style={styles.sosTitle}>Emergency SOS</Text>
-            <Text style={styles.sosSub}>Tap to call for help immediately</Text>
+            <Text style={[styles.sosTitle, { fontFamily: fontBold }]}>{tr('emergencySOS')}</Text>
+            <Text style={[styles.sosSub, { fontFamily: fontMedium }]}>{tr('sosSubtitle')}</Text>
           </View>
         </Pressable>
       </ScrollView>
 
+      {/* Settings Modal */}
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setSettingsOpen(false)}
+        transparent
+        visible={settingsOpen}
+      >
+        <Pressable onPress={() => setSettingsOpen(false)} style={styles.modalBackdrop}>
+          <Pressable style={styles.settingsSheet} onPress={() => {}}>
+            {/* Handle bar */}
+            <View style={styles.sheetHandle} />
+            <Text style={[styles.sheetTitle, { fontFamily: fontBold }]}>Settings</Text>
+
+            {/* Language */}
+            <Text style={[styles.settingLabel, { fontFamily: fontMedium }]}>Language</Text>
+            <View style={styles.languageGrid}>
+              {(['English', 'Assamese', 'Hindi', 'Bodo'] as const).map(lang => (
+                <Pressable
+                  key={lang}
+                  onPress={() => { onLanguageChange(lang); setSettingsOpen(false); }}
+                  style={({ pressed }) => [
+                    styles.langChip,
+                    language === lang && styles.langChipActive,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={[
+                    styles.langChipText,
+                    { fontFamily: fontMedium },
+                    language === lang && styles.langChipTextActive,
+                  ]}>{lang}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* Reminder Notifications */}
+            <View style={styles.settingRow}>
+              <View style={styles.settingRowText}>
+                <Text style={[styles.settingLabel, { fontFamily: fontMedium }]}>Reminder Notifications</Text>
+                <Text style={[styles.settingHint, { fontFamily: fontMedium }]}>Get daily alerts for your reminders</Text>
+              </View>
+              <Switch
+                onValueChange={setNotificationsEnabled}
+                thumbColor="#FFFFFF"
+                trackColor={{ false: '#D0CBC5', true: '#2E7359' }}
+                value={notificationsEnabled}
+              />
+            </View>
+
+            <Pressable
+              onPress={() => setSettingsOpen(false)}
+              style={({ pressed }) => [styles.sheetClose, pressed && styles.pressed]}
+            >
+              <Text style={[styles.sheetCloseText, { fontFamily: fontBold }]}>Done</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <View style={styles.navigationBar}>
-        <NavItem icon={require('../SVG_Icons/Home/Home.svg')} label="Home" />
-        <NavItem icon={require('../SVG_Icons/Home/Controller.svg')} label="Games" onPress={onGames} />
-        <NavItem icon={require('../SVG_Icons/Home/Voice.svg')} label="Voice Chat" onPress={onVoice} />
-        <NavItem icon={require('../SVG_Icons/Home/Health_For_Monitor.svg')} label="Monitor" onPress={onMonitor} />
+        <NavItem icon={require('../SVG_Icons/Home/Home.svg')} label={tr('navHome')} fontMedium={fontMedium} />
+        <NavItem icon={require('../SVG_Icons/Home/Controller.svg')} label={tr('navGames')} onPress={onGames} fontMedium={fontMedium} />
+        <NavItem icon={require('../SVG_Icons/Home/Voice.svg')} label={tr('navVoice')} onPress={onVoice} fontMedium={fontMedium} />
+        <NavItem icon={require('../SVG_Icons/Home/Health_For_Monitor.svg')} label={tr('navMonitor')} onPress={onMonitor} fontMedium={fontMedium} />
       </View>
     </View>
   );
@@ -268,31 +348,37 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
 function PerformanceTile({
   caption,
   completed,
+  completedLabel,
   icon,
   tint,
+  fontMedium,
+  fontBold,
 }: {
   caption: string;
   completed: string;
+  completedLabel: string;
   icon: SvgComponent;
   tint: string;
+  fontMedium: string;
+  fontBold: string;
 }) {
   return (
     <View style={[styles.performanceTile, { backgroundColor: tint }]}>
       <HomeIcon size={40} source={icon} />
       <View style={styles.tileText}>
-        <Text style={styles.tileCaption}>{caption}</Text>
-        <Text style={styles.completedValue}>{completed}</Text>
-        <Text style={styles.completedLabel}>Completed</Text>
+        <Text style={[styles.tileCaption, { fontFamily: fontMedium }]}>{caption}</Text>
+        <Text style={[styles.completedValue, { fontFamily: fontBold }]}>{completed}</Text>
+        <Text style={[styles.completedLabel, { fontFamily: fontMedium }]}>{completedLabel}</Text>
       </View>
     </View>
   );
 }
 
-function NavItem({ icon, label, onPress }: { icon: SvgComponent; label: string; onPress?: () => void }) {
+function NavItem({ icon, label, onPress, fontMedium }: { icon: SvgComponent; label: string; onPress?: () => void; fontMedium: string }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}>
       <HomeIcon size={34} source={icon} />
-      <Text style={styles.navLabel}>{label}</Text>
+      <Text style={[styles.navLabel, { fontFamily: fontMedium }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -311,14 +397,10 @@ const styles = StyleSheet.create({
   },
   greeting: {
     color: '#000000',
-    fontFamily: 'Lora-Medium',
     fontSize: 48,
-    letterSpacing: -1.8,
-    lineHeight: 61,
   },
   date: {
     color: '#919191',
-    fontFamily: 'Lora-Medium',
     fontSize: 18,
     marginTop: 12,
   },
@@ -336,7 +418,6 @@ const styles = StyleSheet.create({
   streakText: {
     color: '#000000',
     flex: 1,
-    fontFamily: 'Lora-Medium',
     fontSize: 19,
     marginLeft: 10,
   },
@@ -349,12 +430,10 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: '#000000',
-    fontFamily: 'Lora-Medium',
     fontSize: 20,
   },
   sectionSubtitle: {
     color: '#000000',
-    fontFamily: 'Lora-Medium',
     fontSize: 14,
     marginTop: 4,
   },
@@ -382,21 +461,18 @@ const styles = StyleSheet.create({
   },
   tileCaption: {
     color: '#000000',
-    fontFamily: 'Lora-Medium',
     fontSize: 11,
     flexWrap: 'wrap',
     lineHeight: 15,
   },
   completedValue: {
     color: '#000000',
-    fontFamily: 'Lora-Bold',
     fontSize: 22,
     lineHeight: 28,
     marginTop: 2,
   },
   completedLabel: {
     color: '#7D6E6E',
-    fontFamily: 'Lora-Medium',
     fontSize: 12,
     marginTop: 1,
   },
@@ -413,7 +489,6 @@ const styles = StyleSheet.create({
   },
   encouragementText: {
     color: '#000000',
-    fontFamily: 'Lora-Medium',
     fontSize: 14,
     marginLeft: 12,
   },
@@ -436,7 +511,6 @@ const styles = StyleSheet.create({
   },
   playText: {
     color: '#FFFFFF',
-    fontFamily: 'Lora-Bold',
     fontSize: 20,
   },
   reminderCard: {
@@ -455,7 +529,6 @@ const styles = StyleSheet.create({
   reminderText: {
     color: '#000000',
     flex: 1,
-    fontFamily: 'Lora-Medium',
     fontSize: 19,
     marginLeft: 5,
   },
@@ -470,15 +543,116 @@ const styles = StyleSheet.create({
   },
   checkMark: {
     color: '#FFFFFF',
-    fontFamily: 'Lora-Bold',
     fontSize: 20,
   },
   noReminderText: {
     color: '#786F6F',
-    fontFamily: 'Lora-Medium',
     fontSize: 15,
     marginTop: 6,
     marginBottom: 4,
+  },
+  // Settings button
+  settingsButton: {
+    alignItems: 'center',
+    backgroundColor: '#F0EDE8',
+    borderColor: 'rgba(0,0,0,0.12)',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    height: 46,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 0,
+    top: 32,
+    width: 46,
+    zIndex: 5,
+  },
+  // Settings modal
+  modalBackdrop: {
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  settingsSheet: {
+    backgroundColor: '#F9F6F0',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingBottom: 36,
+    paddingHorizontal: 24,
+    paddingTop: 14,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    borderRadius: 3,
+    height: 4,
+    marginBottom: 18,
+    width: 44,
+  },
+  sheetTitle: {
+    color: '#000',
+    fontSize: 26,
+    marginBottom: 24,
+  },
+  settingLabel: {
+    color: '#000',
+    fontSize: 17,
+    marginBottom: 10,
+  },
+  settingHint: {
+    color: '#786F6F',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  settingRow: {
+    alignItems: 'center',
+    borderColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    marginTop: 8,
+    padding: 16,
+  },
+  settingRowText: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  languageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 24,
+  },
+  langChip: {
+    borderColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+  },
+  langChipActive: {
+    backgroundColor: '#2E7359',
+    borderColor: '#2E7359',
+  },
+  langChipText: {
+    color: '#000',
+    fontSize: 15,
+  },
+  langChipTextActive: {
+    color: '#FFFFFF',
+  },
+  sheetClose: {
+    alignItems: 'center',
+    backgroundColor: '#2E7359',
+    borderRadius: 14,
+    height: 52,
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  sheetCloseText: {
+    color: '#FFF',
+    fontSize: 18,
   },
   // Quote card
   quoteCard: {
@@ -501,18 +675,15 @@ const styles = StyleSheet.create({
   },
   quoteBadgeText: {
     color: '#C47A2B',
-    fontFamily: 'Lora-Bold',
     fontSize: 12,
   },
   quoteText: {
     color: '#000',
-    fontFamily: 'Lora-Medium',
     fontSize: 17,
     lineHeight: 26,
   },
   quoteTranslation: {
     color: '#786F6F',
-    fontFamily: 'Lora-Medium',
     fontSize: 14,
     lineHeight: 20,
     marginTop: 8,
@@ -520,7 +691,6 @@ const styles = StyleSheet.create({
   },
   quoteTapHint: {
     color: '#C47A2B',
-    fontFamily: 'Lora-Medium',
     fontSize: 12,
     marginTop: 10,
     textAlign: 'right',
@@ -548,12 +718,10 @@ const styles = StyleSheet.create({
   },
   sosTitle: {
     color: '#FFFFFF',
-    fontFamily: 'Lora-Bold',
     fontSize: 20,
   },
   sosSub: {
     color: 'rgba(255,255,255,0.8)',
-    fontFamily: 'Lora-Medium',
     fontSize: 13,
     marginTop: 2,
   },
@@ -568,6 +736,11 @@ const styles = StyleSheet.create({
     left: 22,
     position: 'absolute',
     right: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 12,
   },
   navItem: {
     alignItems: 'center',
@@ -575,7 +748,6 @@ const styles = StyleSheet.create({
   },
   navLabel: {
     color: '#FFFFFF',
-    fontFamily: 'Lora-Medium',
     fontSize: 11,
     marginTop: 2,
   },
