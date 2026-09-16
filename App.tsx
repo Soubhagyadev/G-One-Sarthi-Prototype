@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import * as NavigationBar from 'expo-navigation-bar';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { LanguageProvider, useLanguage } from './LanguageContext';
@@ -32,6 +33,7 @@ import {
   Animated,
   Easing,
   Image,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -68,6 +70,13 @@ export default function App() {
     'NotoSerif-Devanagari': require('./fonts/Noto_Serif_Devanagari/static/NotoSerifDevanagari-Medium.ttf'),
     'NotoSerif-Devanagari-Bold': require('./fonts/Noto_Serif_Devanagari/static/NotoSerifDevanagari-Bold.ttf'),
   });
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    NavigationBar.setVisibilityAsync('hidden').catch(() => undefined);
+    NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => undefined);
+  }, []);
 
   // --- Streak logic ---
   // Runs once on mount. Compares today's date to the last recorded date in storage.
