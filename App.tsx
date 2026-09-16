@@ -1,7 +1,19 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+
+// Show notifications even when the app is in the foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 import GlobeSvg from './SVG_Icons/Globe.svg';
 import { AskingForName } from './components/AskingForName';
 import { LoginScreen } from './components/LoginScreen';
@@ -291,7 +303,7 @@ export default function App() {
           ) : screen === 'welcome' ? (
           <WelcomeScreen name={name} onContinue={() => setScreen('home')} />
           ) : (
-          screen === 'home' ? <HomeScreen name={name} streak={streak} gamesCompleted={gamesCompleted.size} remindersSet={reminders.filter(r => dismissedReminders.has(r.id)).length} totalReminders={reminders.length} onGames={() => setScreen('games')} onMonitor={() => setScreen('monitor')} onVoice={() => setScreen('voice')} onRandomGame={launchRandomGame} nextReminder={getNextReminder()} onDismissReminder={dismissReminder} /> :
+          screen === 'home' ? <HomeScreen name={name} streak={streak} gamesCompleted={gamesCompleted.size} remindersSet={reminders.filter(r => dismissedReminders.has(r.id)).length} totalReminders={reminders.length} onGames={() => setScreen('games')} onMonitor={() => setScreen('monitor')} onVoice={() => setScreen('voice')} onRandomGame={launchRandomGame} nextReminder={getNextReminder()} onDismissReminder={dismissReminder} caregiverPhone="112" /> :
           screen === 'games' ? <GamesScreen onHome={() => setScreen('home')} onMatchPairs={() => setScreen('matchPairs')} onMonitor={() => setScreen('monitor')} onPackYourBags={() => setScreen('packYourBags')} onTravelPattern={() => setScreen('travelGame')} onVoice={() => setScreen('voice')} onWatchTheTray={() => setScreen('watchTheTray')} onPeopleFace={() => setScreen('peopleFace')} /> :
           screen === 'voice' ? <VoiceScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onMonitor={() => setScreen('monitor')} streak={streak} gamesCompleted={gamesCompleted} reminders={reminders} setReminders={setReminders} dismissedReminders={dismissedReminders} patientName={name} /> :
           screen === 'monitor' ? <MonitorScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onVoice={() => setScreen('voice')} reminders={reminders} setReminders={setReminders} gamesCompleted={gamesCompleted} streak={streak} lastActive={lastActive} weeklyHistory={weeklyHistory} remindersTotal={reminders.length} remindersDone={dismissedReminders.size} /> :

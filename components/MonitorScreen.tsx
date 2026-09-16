@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SvgProps } from 'react-native-svg';
@@ -50,6 +52,23 @@ type MonitorScreenProps = {
 export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminders, gamesCompleted, streak, lastActive, weeklyHistory, remindersTotal, remindersDone }: MonitorScreenProps) {
   const [iconPickerId, setIconPickerId] = useState<string | null>(null);
   const [timePickerId, setTimePickerId] = useState<string | null>(null);
+  const [notes, setNotes] = useState('');
+  const [notesSaved, setNotesSaved] = useState(false);
+
+  // Load saved notes on mount
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    AsyncStorage.getItem(`caregiverNotes_${today}`).then(saved => {
+      if (saved) setNotes(saved);
+    });
+  }, []);
+
+  const saveNotes = async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    await AsyncStorage.setItem(`caregiverNotes_${today}`, notes);
+    setNotesSaved(true);
+    setTimeout(() => setNotesSaved(false), 2000);
+  };
 
   // Convert "8:00 PM" → Date object (today's date with that time)
   const timeStringToDate = (time: string): Date => {
@@ -84,16 +103,49 @@ export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminder
   };
 
   const deleteReminder = (id: string) => {
+    Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
     setReminders((items) => items.filter((item) => item.id !== id));
   };
 
-  const saveReminder = (reminder: Reminder) => {
+  const saveReminder = async (reminder: Reminder) => {
     const valid = reminder.time.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
     if (!reminder.label.trim() || !valid) {
       Alert.alert('Check reminder', 'Enter a label and a time such as 8:00 PM.');
       return;
     }
-    Alert.alert('Reminder saved', `${reminder.label} is set for ${reminder.time}.`);
+
+    // Request notification permissions and schedule
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status === 'granted') {
+      // Cancel any previous notification for this reminder id
+      await Notifications.cancelScheduledNotificationAsync(reminder.id).catch(() => {});
+
+      const triggerDate = timeStringToDate(reminder.time);
+      // If the time has already passed today, schedule for tomorrow
+      if (triggerDate <= new Date()) {
+        triggerDate.setDate(triggerDate.getDate() + 1);
+      }
+
+      const iconEmoji = reminder.icon === 'water' ? '💧' : reminder.icon === 'walk' ? '🚶' : '💊';
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: reminder.id,
+        content: {
+          title: `${iconEmoji} ${reminder.label}`,
+          body: `It's time! ${reminder.label} — ${reminder.time}`,
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: triggerDate.getHours(),
+          minute: triggerDate.getMinutes(),
+        },
+      });
+
+      Alert.alert('Reminder saved', `${reminder.label} is set for ${reminder.time}. You will get a daily notification.`);
+    } else {
+      Alert.alert('Reminder saved', `${reminder.label} is set for ${reminder.time}. (Enable notifications in settings for alerts.)`);
+    }
   };
 
   return (
@@ -274,6 +326,30 @@ export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminder
             );
           })}
         </View>
+
+        {/* ── Card 6: Caregiver Notes ── */}
+        <View style={styles.analyticsCard}>
+          <Text style={styles.cardTitle}>Caregiver Notes</Text>
+          <Text style={styles.notesHint}>
+            Write today's observations about the patient — mood, behaviour, any concerns.
+          </Text>
+          <TextInput
+            accessibilityLabel="Caregiver notes"
+            multiline
+            onChangeText={text => { setNotes(text); setNotesSaved(false); }}
+            placeholder="e.g. Seemed calm today, completed all games, had a good appetite..."
+            placeholderTextColor="#B0A8A8"
+            style={styles.notesInput}
+            value={notes}
+          />
+          <Pressable
+            accessibilityRole="button"
+            onPress={saveNotes}
+            style={({ pressed }) => [styles.notesSaveButton, notesSaved && styles.notesSavedButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.notesSaveText}>{notesSaved ? '✓ Saved' : 'Save Notes'}</Text>
+          </Pressable>
+        </View>
       </ScrollView>
 
       <View style={styles.navigationBar}>
@@ -386,6 +462,12 @@ const styles = StyleSheet.create({
   progressTrack: { backgroundColor: '#E6E2DC', borderRadius: 14, flex: 1, height: 20, overflow: 'hidden' },
   progressFill: { backgroundColor: '#2E7359', borderRadius: 14, height: '100%', width: '100%' },
   percent: { color: '#2E7359', fontFamily: 'Lora-Bold', fontSize: 15, marginLeft: 8, width: 20 },
+  // Caregiver notes
+  notesHint: { color: '#786F6F', fontFamily: 'Lora-Medium', fontSize: 13, lineHeight: 19, marginBottom: 12, marginTop: -8 },
+  notesInput: { backgroundColor: '#F5F2EC', borderColor: 'rgba(0,0,0,0.15)', borderRadius: 14, borderWidth: 1.5, color: '#000', fontFamily: 'Lora-Medium', fontSize: 15, lineHeight: 22, minHeight: 110, padding: 14, textAlignVertical: 'top' },
+  notesSaveButton: { alignItems: 'center', backgroundColor: '#2E7359', borderRadius: 12, height: 46, justifyContent: 'center', marginTop: 12 },
+  notesSavedButton: { backgroundColor: '#4A9E6B' },
+  notesSaveText: { color: '#FFF', fontFamily: 'Lora-Bold', fontSize: 16 },
   navigationBar: { alignItems: 'center', backgroundColor: '#2E7359', borderRadius: 50, bottom: 20, flexDirection: 'row', height: 78, justifyContent: 'space-around', left: 22, position: 'absolute', right: 22 },
   navItem: { alignItems: 'center', minWidth: 55 },
   navLabel: { color: '#FFF', fontFamily: 'Lora-Medium', fontSize: 11, marginTop: 2 },

@@ -22,6 +22,15 @@ module.exports = {
     plugins: [
       '@react-native-community/datetimepicker',
       'expo-speech-recognition',
+      [
+        'expo-notifications',
+        {
+          icon: './assets/icon.png',
+          color: '#2E7359',
+          sounds: [],
+          androidMode: 'default',
+        },
+      ],
     ],
     extra: {
       geminiApiKey: process.env.GEMINI_API_KEY,

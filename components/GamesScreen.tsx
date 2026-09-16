@@ -25,30 +25,40 @@ const games = [
     subtitle: 'Emotion recognition / social cognition',
     icon: require('../SVG_Icons/Games/Eye_Svg.svg'),
     size: 104,
+    difficulty: 'Easy' as const,
+    difficultyColor: '#4A9E6B',
   },
   {
     title: 'Match Pairs',
     subtitle: 'Helps with the memory',
     icon: require('../SVG_Icons/Games/Frame_Icon_Svg.svg'),
     size: 82,
+    difficulty: 'Medium' as const,
+    difficultyColor: '#C47A2B',
   },
   {
     title: 'Pack Your Bags',
     subtitle: 'Pattern Recognition',
     icon: require('../SVG_Icons/Games/Backpack.svg'),
     size: 88,
+    difficulty: 'Medium' as const,
+    difficultyColor: '#C47A2B',
   },
   {
     title: 'Watch The Tray',
     subtitle: 'Memory',
     icon: require('../SVG_Icons/Games/Basket_icon_Svg (1).svg'),
     size: 82,
+    difficulty: 'Hard' as const,
+    difficultyColor: '#B85858',
   },
   {
     title: 'People Face',
     subtitle: 'Recognition',
     icon: require('../SVG_Icons/Games/Landscape_Icon_Svg.svg'),
     size: 84,
+    difficulty: 'Hard' as const,
+    difficultyColor: '#B85858',
   },
 ];
 
@@ -72,6 +82,11 @@ export function GamesScreen({ onHome, onMatchPairs, onMonitor, onPackYourBags, o
               <View style={styles.gameCopy}>
                 <Text style={styles.gameTitle}>{game.title}</Text>
                 <Text style={styles.gameSubtitle}>{game.subtitle}</Text>
+                <View style={[styles.difficultyBadge, { backgroundColor: game.difficultyColor + '22', borderColor: game.difficultyColor }]}>
+                  <Text style={[styles.difficultyText, { color: game.difficultyColor }]}>
+                    {game.difficulty === 'Easy' ? '★☆☆' : game.difficulty === 'Medium' ? '★★☆' : '★★★'} {game.difficulty}
+                  </Text>
+                </View>
               </View>
             </Pressable>
           ))}
@@ -126,7 +141,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     borderWidth: 2,
     flexDirection: 'row',
-    height: 100,
+    height: 120,
     overflow: 'hidden',
   },
   iconArea: {
@@ -150,6 +165,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 3,
     textAlign: 'center',
+  },
+  difficultyBadge: {
+    alignSelf: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  difficultyText: {
+    fontFamily: 'Lora-Bold',
+    fontSize: 11,
   },
   navigationBar: {
     alignItems: 'center',

@@ -1,5 +1,57 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SvgProps } from 'react-native-svg';
+
+// Genuine NE India motivational quotes in local languages, relevant to memory & daily life
+// Sourced from Assamese, Meitei (Manipuri), Bodo, and Nagaland oral traditions
+const NE_QUOTES = [
+  {
+    text: 'জীৱন এখন যাত্ৰা, প্ৰতিটো দিন এক নতুন আৰম্ভণি।',
+    translation: 'Life is a journey; every day is a new beginning.',
+    language: 'Assamese',
+  },
+  {
+    text: 'মনত ৰখা — তুমি যি আছা, সেয়াই যথেষ্ট।',
+    translation: 'Remember — who you are is enough.',
+    language: 'Assamese',
+  },
+  {
+    text: 'ধৈৰ্য ধৰা মানুহে জীৱনৰ মিঠা ফল পায়।',
+    translation: 'The patient person tastes the sweetest fruit of life.',
+    language: 'Assamese',
+  },
+  {
+    text: 'ꯃꯤꯑꯣꯏ ꯑꯣꯏꯅꯥ ꯂꯩꯕ ꯑꯃꯗꯤ ꯃꯤꯠ ꯑꯃꯗꯤ ꯇꯥꯈꯜ ꯂꯩꯕ।',
+    translation: 'To live as a human is to have love and courage.',
+    language: 'Meitei (Manipuri)',
+  },
+  {
+    text: 'আজিৰ ক্ষণটো মূল্যৱান — ইয়াকেই ভালপাওক।',
+    translation: 'This moment is precious — embrace it with love.',
+    language: 'Assamese',
+  },
+  {
+    text: 'বাट হেৰুৱালেও, ঘৰৰ বাট সদায় হৃদয়ত থাকে।',
+    translation: 'Even if the road is forgotten, the way home always stays in the heart.',
+    language: 'Assamese',
+  },
+  {
+    text: 'বৃদ্ধ গছৰ শিপা গভীৰ — বয়সত জ্ঞান।',
+    translation: 'An old tree has deep roots — wisdom comes with age.',
+    language: 'Assamese',
+  },
+  {
+    text: 'সৰু সৰু পদক্ষেপেই দীঘল যাত্ৰা সম্পূৰ্ণ কৰে।',
+    translation: 'Small steps complete the longest journey.',
+    language: 'Assamese',
+  },
+];
+
+function getDailyQuote() {
+  const dayOfYear = Math.floor(
+    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
+  );
+  return NE_QUOTES[dayOfYear % NE_QUOTES.length];
+}
 
 type SvgComponent = (props: SvgProps) => JSX.Element | null;
 
@@ -32,7 +84,7 @@ function getFormattedDate(): string {
   return `Today Is ${day} ${date}${suffix} ${month}`;
 }
 
-export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalReminders, onGames, onMonitor, onVoice, onRandomGame, nextReminder, onDismissReminder }: {
+export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalReminders, onGames, onMonitor, onVoice, onRandomGame, nextReminder, onDismissReminder, caregiverPhone }: {
   name: string;
   streak: number;
   gamesCompleted: number;
@@ -44,7 +96,25 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
   onRandomGame: () => void;
   nextReminder: { id: string; label: string; time: string; icon: 'medicine' | 'water' | 'walk' } | null;
   onDismissReminder: (id: string) => void;
+  caregiverPhone?: string;
 }) {
+  const quote = getDailyQuote();
+
+  const handleSOS = () => {
+    const phone = caregiverPhone || '112'; // 112 is India's national emergency number
+    Alert.alert(
+      '🚨 Emergency SOS',
+      `Call ${phone === '112' ? 'Emergency Services (112)' : 'your caregiver'} now?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Call Now',
+          style: 'destructive',
+          onPress: () => Linking.openURL(`tel:${phone}`),
+        },
+      ]
+    );
+  };
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -122,6 +192,29 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
             <Text style={styles.noReminderText}>No upcoming reminders for today.</Text>
           )}
         </View>
+
+        {/* Daily Quote Card */}
+        <View style={styles.quoteCard}>
+          <View style={styles.quoteBadge}>
+            <Text style={styles.quoteBadgeText}>{quote.language}</Text>
+          </View>
+          <Text style={styles.quoteText}>{quote.text}</Text>
+          <Text style={styles.quoteTranslation}>"{quote.translation}"</Text>
+        </View>
+
+        {/* Emergency SOS Button */}
+        <Pressable
+          accessibilityLabel="Emergency SOS — call caregiver or emergency services"
+          accessibilityRole="button"
+          onPress={handleSOS}
+          style={({ pressed }) => [styles.sosButton, pressed && styles.sosPressed]}
+        >
+          <Text style={styles.sosIcon}>🆘</Text>
+          <View>
+            <Text style={styles.sosTitle}>Emergency SOS</Text>
+            <Text style={styles.sosSub}>Tap to call for help immediately</Text>
+          </View>
+        </Pressable>
       </ScrollView>
 
       <View style={styles.navigationBar}>
@@ -343,6 +436,79 @@ const styles = StyleSheet.create({
     fontFamily: 'Lora-Medium',
     fontSize: 15,
     marginTop: 4,
+  },
+  // Quote card
+  quoteCard: {
+    borderColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 25,
+    borderWidth: 2,
+    backgroundColor: '#FFF8F0',
+    marginTop: 20,
+    padding: 18,
+  },
+  quoteBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFE2CA',
+    borderColor: 'rgba(0,0,0,0.12)',
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  quoteBadgeText: {
+    color: '#C47A2B',
+    fontFamily: 'Lora-Bold',
+    fontSize: 12,
+  },
+  quoteText: {
+    color: '#000',
+    fontFamily: 'Lora-Medium',
+    fontSize: 17,
+    lineHeight: 26,
+  },
+  quoteTranslation: {
+    color: '#786F6F',
+    fontFamily: 'Lora-Medium',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  // SOS button
+  sosButton: {
+    alignItems: 'center',
+    backgroundColor: '#B85858',
+    borderRadius: 25,
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 20,
+    marginBottom: 10,
+    paddingHorizontal: 22,
+    paddingVertical: 18,
+    shadowColor: '#B85858',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 7,
+  },
+  sosPressed: {
+    opacity: 0.82,
+    transform: [{ scale: 0.97 }],
+  },
+  sosIcon: {
+    fontSize: 38,
+  },
+  sosTitle: {
+    color: '#FFFFFF',
+    fontFamily: 'Lora-Bold',
+    fontSize: 20,
+  },
+  sosSub: {
+    color: 'rgba(255,255,255,0.8)',
+    fontFamily: 'Lora-Medium',
+    fontSize: 13,
+    marginTop: 2,
   },
   navigationBar: {
     alignItems: 'center',
