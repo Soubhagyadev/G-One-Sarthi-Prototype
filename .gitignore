@@ -4,3 +4,5 @@ dist/
 *.log
 .env
 android/
+APP_CONTEXT.md
+Instruction.md
