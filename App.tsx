@@ -34,8 +34,10 @@ import {
   Image,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -284,8 +286,18 @@ function MainScreenContent({
   chooseRole: (role: 'patient' | 'caregiver') => void;
 }) {
   const { t, fontMedium, fontBold, headingStyle } = useLanguage();
+  const { width, height } = useWindowDimensions();
+  // Card height: 38% of screen height, capped so two cards + gaps always fit
+  const cardHeight = Math.min(Math.round(height * 0.30), 220);
+  const imageH = Math.round(cardHeight * 0.84);
+
   return (
-    <>
+    <ScrollView
+      contentContainerStyle={styles.mainContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Language picker — top right */}
       <View style={styles.languageArea}>
         <Pressable
           accessibilityRole="button"
@@ -312,23 +324,25 @@ function MainScreenContent({
         )}
       </View>
 
+      {/* Title block — pushed down to clear language button */}
       <View style={styles.intro}>
         <Text style={[styles.title, { fontFamily: fontMedium, ...headingStyle(45, 58) }]}>{t('welcome')}</Text>
         <Text style={[styles.subtitle, { fontFamily: fontMedium }]}>{t('subtitle')}</Text>
       </View>
 
+      {/* Role cards */}
       <View style={styles.roleList}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('imPatient')}
           onPress={() => chooseRole('patient')}
-          style={({ pressed }) => [styles.roleCard, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.roleCard, { height: cardHeight }, pressed && styles.pressed]}
         >
           <Text style={[styles.roleTitle, { fontFamily: fontMedium }]}>{t('imPatient')}</Text>
           <Image
             source={require('./app_image/Main_Screen/Caregiver_Image.png')}
             resizeMode="contain"
-            style={styles.patientImage}
+            style={[styles.patientImage, { height: imageH, width: width * 0.82 }]}
           />
         </Pressable>
 
@@ -336,17 +350,17 @@ function MainScreenContent({
           accessibilityRole="button"
           accessibilityLabel={t('imCaregiver')}
           onPress={() => chooseRole('caregiver')}
-          style={({ pressed }) => [styles.roleCard, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.roleCard, { height: cardHeight }, pressed && styles.pressed]}
         >
           <Text style={[styles.roleTitle, { fontFamily: fontMedium }]}>{t('imCaregiver')}</Text>
           <Image
             source={require('./app_image/Main_Screen/Patient_Image.png')}
             resizeMode="contain"
-            style={styles.caregiverImage}
+            style={[styles.caregiverImage, { height: imageH, width: width * 0.82 }]}
           />
         </Pressable>
       </View>
-    </>
+    </ScrollView>
   );
 }
 
@@ -449,7 +463,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   intro: {
-    marginTop: 130,
+    marginTop: 72,
   },
   title: {
     color: colors.ink,
@@ -462,12 +476,17 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 3,
   },
+  mainContent: {
+    paddingBottom: 32,
+    paddingTop: 36,
+    flexGrow: 1,
+  },
   roleList: {
-    marginTop: 46,
-    gap: 46,
+    marginTop: 28,
+    gap: 16,
+    paddingBottom: 16,
   },
   roleCard: {
-    height: 224,
     borderWidth: 1,
     borderColor: colors.cardBorder,
     borderRadius: 16,
@@ -475,23 +494,18 @@ const styles = StyleSheet.create({
   },
   roleTitle: {
     color: colors.ink,
-    fontFamily: 'Lora-Medium',
     fontSize: 22,
     lineHeight: 28,
     marginLeft: 17,
-    marginTop: 6,
+    marginTop: 10,
   },
   patientImage: {
     position: 'absolute',
-    height: 188,
-    width: 350,
     bottom: 0,
     left: 0,
   },
   caregiverImage: {
     position: 'absolute',
-    height: 188,
-    width: 350,
     bottom: 0,
     left: 7,
   },
