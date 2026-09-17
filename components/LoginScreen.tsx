@@ -2,22 +2,65 @@ import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLanguage } from '../LanguageContext';
+import { signInWithEmail, signInWithGoogle, signUpWithEmail } from '../authService';
+
+const GoogleLogo = require('../SVG_Icons/Login_Button/Google_Logo.svg') as any;
 
 export function LoginScreen({ onBack, onSignIn }: { onBack: () => void; onSignIn: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const { t: tr, fontMedium, fontBold } = useLanguage();
 
-  const signIn = () => {
+  const validateDetails = () => {
     if (!email.trim() || !password) {
       Alert.alert('Details needed', 'Please enter your email and password.');
-      return;
+      return false;
     }
-    if (email.trim().toLowerCase() !== 'example@new.com' || password !== '123') {
-      Alert.alert('Incorrect details', 'Email or password is wrong. Please try again.');
-      return;
+    return true;
+  };
+
+  const signIn = async () => {
+    if (!validateDetails()) return;
+    try {
+      setLoading(true);
+      await signInWithEmail(email.trim(), password);
+      onSignIn();
+    } catch (error) {
+      Alert.alert('Login failed', error instanceof Error ? error.message : 'Unable to log in right now.');
+    } finally {
+      setLoading(false);
     }
-    onSignIn();
+  };
+
+  const signUp = async () => {
+    if (!validateDetails()) return;
+    try {
+      setLoading(true);
+      const loggedIn = await signUpWithEmail(email.trim(), password);
+      if (loggedIn) {
+        onSignIn();
+      } else {
+        Alert.alert('Check your email', 'Your caregiver account was created. Confirm your email, then log in.');
+      }
+    } catch (error) {
+      Alert.alert('Sign up failed', error instanceof Error ? error.message : 'Unable to create the account right now.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithGoogle = async () => {
+    try {
+      setLoading(true);
+      await signInWithGoogle();
+      onSignIn();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to sign in with Google right now.';
+      Alert.alert('Google sign-in failed', message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -65,8 +108,30 @@ export function LoginScreen({ onBack, onSignIn }: { onBack: () => void; onSignIn
           />
           <Pressable
             accessibilityRole="button"
+            disabled={loading}
+            onPress={loginWithGoogle}
+            style={({ pressed }) => [styles.googleButton, pressed && styles.pressed, loading && styles.disabledButton]}
+          >
+            {(() => { const Logo = GoogleLogo.default ?? GoogleLogo; return <Logo height={22} width={22} />; })()}
+            <Text style={[styles.googleText, { fontFamily: fontBold }]}>
+              {loading ? 'Connecting...' : 'Continue with Google'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            disabled={loading}
+            onPress={signUp}
+            style={({ pressed }) => [styles.signUpButton, pressed && styles.pressed, loading && styles.disabledButton]}
+          >
+            <Text style={[styles.signUpText, { fontFamily: fontBold }]}>Sign up</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            disabled={loading}
             onPress={signIn}
-            style={({ pressed }) => [styles.signInButton, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.signInButton, pressed && styles.pressed, loading && styles.disabledButton]}
           >
             <Text style={[styles.signInText, { fontFamily: fontBold }]}>{tr('signIn')}</Text>
           </Pressable>
@@ -163,6 +228,39 @@ const styles = StyleSheet.create({
   signInText: {
     color: '#FFFFFF',
     fontSize: 20,
+  },
+  googleButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D9D2C9',
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 50,
+    justifyContent: 'center',
+    marginTop: 12,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  googleText: {
+    color: '#1F2937',
+    fontSize: 18,
+  },
+  signUpButton: {
+    alignItems: 'center',
+    backgroundColor: '#F2EEE7',
+    borderColor: '#C7C2B8',
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 50,
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  signUpText: {
+    color: '#2E7359',
+    fontSize: 18,
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
   pressed: {
     opacity: 0.72,

@@ -6,3 +6,5 @@ dist/
 android/
 APP_CONTEXT.md
 Instruction.md
+Client_Secret.json
+Client_Secret_Web_Auth.json

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import * as Notifications from 'expo-notifications';
 import type { Language } from './i18n';
 import { getItem, migrateLegacyAsyncStorage, multiGet, multiSet, setItem } from './storage';
+import { savePatientState, syncPendingQueue } from './syncService';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
@@ -85,15 +86,22 @@ export default function App() {
 
   useEffect(() => {
     setItem('language', language).catch(() => undefined);
+    savePatientState('language', language).catch(() => undefined);
   }, [language]);
 
   useEffect(() => {
     setItem('patientName', name).catch(() => undefined);
+    savePatientState('patientName', name).catch(() => undefined);
   }, [name]);
 
   useEffect(() => {
     setItem('reminders', JSON.stringify(reminders)).catch(() => undefined);
+    savePatientState('reminders', reminders).catch(() => undefined);
   }, [reminders]);
+
+  useEffect(() => {
+    syncPendingQueue().catch(() => undefined);
+  }, [language, name, reminders]);
 
   // --- Streak logic ---
   // Runs once on mount. Compares today's date to the last recorded date in storage.
@@ -118,7 +126,7 @@ export default function App() {
       'gamesCompletedDate', 'gamesCompletedList',
       'dismissedRemindersDate', 'dismissedRemindersList',
       'lastActive', 'weeklyHistory',
-      'language', 'patientName',
+      'language', 'patientName', 'patientId',
       'reminders',
     ]).then((rows) => {
       const values = Object.fromEntries(rows.map(([key, value]) => [key, value]));
@@ -147,6 +155,8 @@ export default function App() {
       const currentStreak = savedCount ? Number(savedCount) : 0;
       if (!savedDate) {
         multiSet([['streakCount', '1'], ['streakLastDate', today]]).catch(() => undefined);
+        savePatientState('streakCount', 1).catch(() => undefined);
+        savePatientState('streakLastDate', today).catch(() => undefined);
         setStreak(1);
       } else if (savedDate === today) {
         setStreak(currentStreak);
@@ -156,6 +166,8 @@ export default function App() {
         const diffDays = Math.round((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
         const newStreak = diffDays === 1 ? currentStreak + 1 : 1;
         multiSet([['streakCount', String(newStreak)], ['streakLastDate', today]]).catch(() => undefined);
+        savePatientState('streakCount', newStreak).catch(() => undefined);
+        savePatientState('streakLastDate', today).catch(() => undefined);
         setStreak(newStreak);
       }
 
@@ -164,6 +176,8 @@ export default function App() {
         setGamesCompleted(new Set(JSON.parse(gamesList)));
       } else {
         multiSet([['gamesCompletedDate', today], ['gamesCompletedList', '[]']]).catch(() => undefined);
+        savePatientState('gamesCompletedDate', today).catch(() => undefined);
+        savePatientState('gamesCompletedList', []).catch(() => undefined);
         setGamesCompleted(new Set());
       }
 
@@ -172,6 +186,8 @@ export default function App() {
         setDismissedReminders(new Set(JSON.parse(dismissList)));
       } else {
         multiSet([['dismissedRemindersDate', today], ['dismissedRemindersList', '[]']]).catch(() => undefined);
+        savePatientState('dismissedRemindersDate', today).catch(() => undefined);
+        savePatientState('dismissedRemindersList', []).catch(() => undefined);
         setDismissedReminders(new Set());
       }
 
@@ -185,6 +201,7 @@ export default function App() {
       const activeStr = `Today at ${timeStr}`;
       setLastActive(activeStr);
       setItem('lastActive', activeStr).catch(() => undefined);
+      savePatientState('lastActive', activeStr).catch(() => undefined);
 
       // ── Weekly history ──
       const historyMap: Record<string, number> = savedWeekly ? JSON.parse(savedWeekly) : {};
@@ -194,6 +211,7 @@ export default function App() {
       cutoff.setDate(cutoff.getDate() - 7);
       Object.keys(historyMap).forEach(k => { if (new Date(k) < cutoff) delete historyMap[k]; });
       setItem('weeklyHistory', JSON.stringify(historyMap)).catch(() => undefined);
+      savePatientState('weeklyHistory', historyMap).catch(() => undefined);
       setWeeklyHistory(buildWeek(historyMap));
     }).catch(() => {
       setStreak(1);
@@ -237,6 +255,8 @@ export default function App() {
       next.add(id);
       const today = new Date().toISOString().slice(0, 10);
       multiSet([['dismissedRemindersDate', today], ['dismissedRemindersList', JSON.stringify([...next])]]).catch(() => undefined);
+      savePatientState('dismissedRemindersDate', today).catch(() => undefined);
+      savePatientState('dismissedRemindersList', [...next]).catch(() => undefined);
       return next;
     });
   };
@@ -254,10 +274,13 @@ export default function App() {
       next.add(gameId);
       const today = new Date().toISOString().slice(0, 10);
       multiSet([['gamesCompletedDate', today], ['gamesCompletedList', JSON.stringify([...next])]]).catch(() => undefined);
+      savePatientState('gamesCompletedDate', today).catch(() => undefined);
+      savePatientState('gamesCompletedList', [...next]).catch(() => undefined);
       getItem('weeklyHistory').then(saved => {
         const map: Record<string, number> = saved ? JSON.parse(saved) : {};
         map[today] = next.size;
         setItem('weeklyHistory', JSON.stringify(map)).catch(() => undefined);
+        savePatientState('weeklyHistory', map).catch(() => undefined);
         const week: { date: string; count: number }[] = [];
         for (let i = 6; i >= 0; i--) {
           const d = new Date();

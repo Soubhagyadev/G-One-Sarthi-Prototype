@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as Notifications from 'expo-notifications';
 import { getItem, setItem } from '../storage';
+import { savePatientState } from '../syncService';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SvgProps } from 'react-native-svg';
@@ -61,6 +62,7 @@ export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminder
   const saveNotes = async () => {
     const today = new Date().toISOString().slice(0, 10);
     await setItem(`caregiverNotes_${today}`, notes);
+    await savePatientState(`caregiverNotes_${today}`, notes);
     setNotesSaved(true);
     setTimeout(() => setNotesSaved(false), 2000);
   };

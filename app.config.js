@@ -18,9 +18,11 @@ module.exports = {
       translucent: true,
       hidden: true,
     },
+    scheme: 'gonesarthi',
     plugins: [
       '@react-native-community/datetimepicker',
       'expo-speech-recognition',
+      'expo-web-browser',
       [
         'expo-notifications',
         {
@@ -33,6 +35,8 @@ module.exports = {
     ],
     extra: {
       geminiApiKey: process.env.GEMINI_API_KEY,
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
       eas: {
         projectId: 'b49b8b91-772d-49d8-9d44-294cbe3a23ed',
       },
