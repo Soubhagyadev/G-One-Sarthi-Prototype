@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLanguage } from '../LanguageContext';
 
@@ -19,6 +19,16 @@ export function PackYourBagsGame({ onExit, onComplete }: { onExit: () => void; o
   const [score, setScore] = useState(0);
 
   const complete = index === scenarios.length;
+  const scenario = scenarios[index];
+  const options = useMemo(() => {
+    if (!scenario) return [];
+    const shuffled = [...scenario.options];
+    for (let optionIndex = shuffled.length - 1; optionIndex > 0; optionIndex -= 1) {
+      const randomIndex = Math.floor(Math.random() * (optionIndex + 1));
+      [shuffled[optionIndex], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[optionIndex]];
+    }
+    return shuffled;
+  }, [index]);
 
   if (complete) {
     return (
@@ -40,7 +50,6 @@ export function PackYourBagsGame({ onExit, onComplete }: { onExit: () => void; o
     );
   }
 
-  const scenario = scenarios[index];
   const correct = selected === scenario.answer;
   const choose = (option: string) => {
     if (selected) return;
@@ -61,7 +70,7 @@ export function PackYourBagsGame({ onExit, onComplete }: { onExit: () => void; o
       </View>
       <Text style={[styles.question, { fontFamily: fontMedium }]}>Choose one item:</Text>
       <View style={styles.options}>
-        {scenario.options.map((option) => {
+        {options.map((option) => {
           const answer = option === scenario.answer;
           const chosen = option === selected;
           return (

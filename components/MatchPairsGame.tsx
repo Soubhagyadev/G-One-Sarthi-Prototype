@@ -18,17 +18,28 @@ const images = {
 const order = ['boat', 'flower', 'bamboo', 'house', 'bird', 'basket', 'landscape', 'shawl', 'basket', 'landscape', 'house', 'bamboo', 'shawl', 'bird', 'boat', 'flower'] as const;
 const cards: Card[] = order.map((pair, index) => ({ id: `${pair}-${index}`, image: images[pair], pair }));
 
+function shuffle<T>(items: T[]): T[] {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
 export function MatchPairsGame({ onExit, onComplete }: { onExit: () => void; onComplete?: () => void }) {
   const { t: tr, fontMedium, fontBold } = useLanguage();
+  const [shuffledCards, setShuffledCards] = useState<Card[]>(() => shuffle(cards));
   const [selected, setSelected] = useState<string[]>([]);
   const [matched, setMatched] = useState<string[]>([]);
   const [moves, setMoves] = useState(0);
   const [locked, setLocked] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isComplete = matched.length === cards.length;
+  const isComplete = matched.length === shuffledCards.length;
 
   const resetGame = () => {
     if (timer.current) clearTimeout(timer.current);
+    setShuffledCards(shuffle(cards));
     setSelected([]); setMatched([]); setMoves(0); setLocked(false);
   };
 
@@ -38,7 +49,7 @@ export function MatchPairsGame({ onExit, onComplete }: { onExit: () => void; onC
     setSelected(next);
     if (next.length !== 2) return;
     setMoves((value) => value + 1);
-    const first = cards.find((item) => item.id === next[0]);
+    const first = shuffledCards.find((item) => item.id === next[0]);
     if (first?.pair === card.pair) {
       const newMatched = [...matched, ...next];
       setMatched(newMatched);
@@ -74,7 +85,7 @@ export function MatchPairsGame({ onExit, onComplete }: { onExit: () => void; onC
       <Text style={[styles.heading, { fontFamily: fontMedium }]}>{tr('matchPairsTitle')}</Text>
       <Text style={[styles.moves, { fontFamily: fontMedium }]}>{tr('moves', moves)}</Text>
       <View style={styles.grid}>
-        {cards.map((card) => {
+        {shuffledCards.map((card) => {
           const revealed = selected.includes(card.id) || matched.includes(card.id);
           return (
             <Pressable
@@ -85,7 +96,7 @@ export function MatchPairsGame({ onExit, onComplete }: { onExit: () => void; onC
               style={({ pressed }) => [styles.card, revealed && styles.revealedCard, pressed && !revealed && styles.pressed]}
             >
               {revealed
-                ? <Image resizeMode="contain" source={card.image} style={styles.cardImage} />
+                ? <Image resizeMode="cover" source={card.image} style={styles.cardImage} />
                 : <Text style={[styles.cardBack, { fontFamily: fontBold }]}>?</Text>
               }
             </Pressable>

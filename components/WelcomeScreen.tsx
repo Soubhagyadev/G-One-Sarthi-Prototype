@@ -7,7 +7,7 @@ type WelcomeScreenProps = {
 };
 
 export function WelcomeScreen({ name, onContinue }: WelcomeScreenProps) {
-  const { t: tr, fontMedium, headingStyle } = useLanguage();
+  const { t: tr, fontMedium, fontBold, headingStyle } = useLanguage();
 
   return (
     <Pressable
@@ -26,7 +26,7 @@ export function WelcomeScreen({ name, onContinue }: WelcomeScreenProps) {
       <Text style={[styles.heading, { fontFamily: fontMedium, ...headingStyle(54, 68) }]}>
         {tr('welcomePatient')}{`\n`}{name || 'Amma'}
       </Text>
-      <Text style={[styles.tapHint, { fontFamily: fontMedium }]}>
+      <Text style={[styles.tapHint, { fontFamily: fontBold }]}> 
         {tr('tapToContinue')}
       </Text>
     </Pressable>
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   },
   tapHint: {
     bottom: 36,
-    color: '#555555',
+    color: '#FFFFFF',
     fontSize: 16,
     left: 23,
     letterSpacing: 0.2,

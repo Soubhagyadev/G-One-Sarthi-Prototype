@@ -89,6 +89,7 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
   const { t: tr, fontMedium, fontBold, headingStyle, language } = useLanguage();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showSettingsButton, setShowSettingsButton] = useState(true);
 
   function getGreeting(): string {
     const hour = new Date().getHours();
@@ -157,16 +158,23 @@ export function HomeScreen({ name, streak, gamesCompleted, remindersSet, totalRe
   return (
     <View style={styles.container}>
       {/* Settings button — top right */}
-      <Pressable
-        accessibilityLabel="Open settings"
-        accessibilityRole="button"
-        onPress={() => setSettingsOpen(true)}
-        style={({ pressed }) => [styles.settingsButton, pressed && styles.pressed]}
-      >
-        <HomeIcon size={28} source={require('../SVG_Icons/Settings_Icon.svg')} />
-      </Pressable>
+      {showSettingsButton && (
+        <Pressable
+          accessibilityLabel="Open settings"
+          accessibilityRole="button"
+          onPress={() => setSettingsOpen(true)}
+          style={({ pressed }) => [styles.settingsButton, pressed && styles.pressed]}
+        >
+          <HomeIcon size={28} source={require('../SVG_Icons/Settings_Icon.svg')} />
+        </Pressable>
+      )}
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        onScroll={(event) => setShowSettingsButton(event.nativeEvent.contentOffset.y <= 4)}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={[styles.greeting, { fontFamily: fontMedium, ...headingStyle(48, 61) }]}>{getGreeting()},{`\n`}{name || 'Amma'}</Text>
         <Text style={[styles.date, { fontFamily: fontMedium }]}>{getFormattedDate()}</Text>
 
@@ -699,6 +707,8 @@ const styles = StyleSheet.create({
   sosButton: {
     alignItems: 'center',
     backgroundColor: '#B85858',
+    borderColor: 'rgba(0, 0, 0, 0.25)',
+    borderWidth: 2,
     borderRadius: 25,
     flexDirection: 'row',
     gap: 16,
@@ -708,7 +718,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     shadowColor: '#B85858',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.24,
     shadowRadius: 10,
     elevation: 7,
   },

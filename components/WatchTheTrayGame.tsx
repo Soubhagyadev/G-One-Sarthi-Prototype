@@ -158,6 +158,9 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
   if (phase === 'memorise') {
     return (
       <View style={styles.container}>
+        <Pressable accessibilityRole="button" onPress={onExit} style={styles.backButton}>
+          <Text style={[styles.backText, { fontFamily: fontMedium }]}>‹ {tr('backToGames')}</Text>
+        </Pressable>
         <Text style={[styles.heading, { fontFamily: fontMedium }]}>{tr('memoriseItems')}</Text>
         <Text style={[styles.subtitle, { fontFamily: fontMedium }]}>Study the tray carefully…</Text>
         <CountdownBadge seconds={countdown} fontBold={fontBold} />
@@ -182,6 +185,9 @@ export function WatchTheTrayGame({ onExit, onComplete }: { onExit: () => void; o
     const ready = selected.length === level.trayCount;
     return (
       <View style={styles.container}>
+        <Pressable accessibilityRole="button" onPress={onExit} style={styles.backButton}>
+          <Text style={[styles.backText, { fontFamily: fontMedium }]}>‹ {tr('backToGames')}</Text>
+        </Pressable>
         <ScrollView contentContainerStyle={styles.recallContent} showsVerticalScrollIndicator={false}>
           <Text style={[styles.heading, { fontFamily: fontMedium }]}>{tr('selectItems')}</Text>
           <Text style={[styles.subtitle, { fontFamily: fontMedium }]}>

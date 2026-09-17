@@ -21,6 +21,15 @@ export function TravelPatternGame({ onExit, onComplete }: { onExit: () => void; 
   const isComplete = roundIndex === rounds.length;
   const round = rounds[roundIndex];
   const progress = useMemo(() => `${Math.min(roundIndex + 1, rounds.length)} of ${rounds.length}`, [roundIndex]);
+  const options = useMemo(() => {
+    if (!round) return [];
+    const shuffled = [...round.options];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const randomIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+    }
+    return shuffled;
+  }, [roundIndex]);
 
   if (isComplete) {
     return (
@@ -51,7 +60,7 @@ export function TravelPatternGame({ onExit, onComplete }: { onExit: () => void; 
       <Text style={[styles.progress, { fontFamily: fontMedium }]}>{progress}</Text>
       <Image accessibilityLabel="Person showing an emotion" resizeMode="contain" source={round.image} style={styles.personImage} />
       <View style={styles.optionGrid}>
-        {round.options.map((option) => {
+        {options.map((option) => {
           const answer = option === round.answer;
           const chosen = option === selected;
           return (
