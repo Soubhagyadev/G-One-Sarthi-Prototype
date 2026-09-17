@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import { getItem, setItem } from '../storage';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SvgProps } from 'react-native-svg';
 import { useLanguage } from '../LanguageContext';
 
-type SvgComponent = (props: SvgProps) => JSX.Element | null;
+type SvgComponent = (props: SvgProps) => React.ReactElement | null;
 
 function Icon({ source, size }: { source: SvgComponent | { default: SvgComponent }; size: number }) {
   const SvgIcon = (source as any).default ?? source;
@@ -53,14 +53,14 @@ export function MonitorScreen({ onGames, onHome, onVoice, reminders, setReminder
   // Load saved notes on mount
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
-    AsyncStorage.getItem(`caregiverNotes_${today}`).then(saved => {
+    getItem(`caregiverNotes_${today}`).then(saved => {
       if (saved) setNotes(saved);
-    });
+    }).catch(() => undefined);
   }, []);
 
   const saveNotes = async () => {
     const today = new Date().toISOString().slice(0, 10);
-    await AsyncStorage.setItem(`caregiverNotes_${today}`, notes);
+    await setItem(`caregiverNotes_${today}`, notes);
     setNotesSaved(true);
     setTimeout(() => setNotesSaved(false), 2000);
   };

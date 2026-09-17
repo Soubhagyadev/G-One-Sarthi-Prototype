@@ -2,7 +2,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SvgProps } from 'react-native-svg';
 import { useLanguage } from '../LanguageContext';
 
-type SvgComponent = (props: SvgProps) => JSX.Element | null;
+type SvgComponent = (props: SvgProps) => React.ReactElement | null;
 
 function Icon({ source, size }: { source: SvgComponent | { default: SvgComponent }; size: number }) {
   const SvgIcon = (source as any).default ?? source;

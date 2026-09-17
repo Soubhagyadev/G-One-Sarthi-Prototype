@@ -18,7 +18,7 @@ import type { Reminder } from './MonitorScreen';
 const GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey as string;
 const TOTAL_GAMES = 5;
 
-type SvgComponent = (props: SvgProps) => JSX.Element | null;
+type SvgComponent = (props: SvgProps) => React.ReactElement | null;
 
 function Icon({ source, size }: { source: SvgComponent | { default: SvgComponent }; size: number }) {
   const SvgIcon = (source as any).default ?? source;

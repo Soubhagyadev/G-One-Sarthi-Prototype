@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import type { Language } from './i18n';
+import { getItem, migrateLegacyAsyncStorage, multiGet, multiSet, setItem } from './storage';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
@@ -16,7 +17,7 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
-import GlobeSvg from './SVG_Icons/Globe.svg';
+const GlobeSvg = require('./SVG_Icons/Globe.svg') as any;
 import { AskingForName } from './components/AskingForName';
 import { LoginScreen } from './components/LoginScreen';
 import { HomeScreen } from './components/HomeScreen';
@@ -52,7 +53,7 @@ const colors = {
 export default function App() {
   const [screen, setScreen] = useState<'main' | 'name' | 'welcome' | 'login' | 'home' | 'games' | 'voice' | 'monitor' | 'travelGame' | 'matchPairs' | 'packYourBags' | 'watchTheTray' | 'peopleFace'>('main');
   const [languagePickerOpen, setLanguagePickerOpen] = useState(false);
-  const [language, setLanguage] = useState('English');
+  const [language, setLanguage] = useState<Language>('English');
   const [name, setName] = useState('Amma');
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
   const [streak, setStreak] = useState(0);
@@ -78,6 +79,22 @@ export default function App() {
     NavigationBar.setBehaviorAsync('overlay-swipe').catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    migrateLegacyAsyncStorage().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    setItem('language', language).catch(() => undefined);
+  }, [language]);
+
+  useEffect(() => {
+    setItem('patientName', name).catch(() => undefined);
+  }, [name]);
+
+  useEffect(() => {
+    setItem('reminders', JSON.stringify(reminders)).catch(() => undefined);
+  }, [reminders]);
+
   // --- Streak logic ---
   // Runs once on mount. Compares today's date to the last recorded date in storage.
   // Same day → no change. Yesterday → increment. Older → reset to 1.
@@ -96,17 +113,40 @@ export default function App() {
       return week;
     };
 
-    AsyncStorage.multiGet([
+    multiGet([
       'streakCount', 'streakLastDate',
       'gamesCompletedDate', 'gamesCompletedList',
       'dismissedRemindersDate', 'dismissedRemindersList',
       'lastActive', 'weeklyHistory',
-    ]).then(([[, savedCount], [, savedDate], [, gamesDate], [, gamesList], [, dismissDate], [, dismissList], [, savedLastActive], [, savedWeekly]]) => {
+      'language', 'patientName',
+      'reminders',
+    ]).then((rows) => {
+      const values = Object.fromEntries(rows.map(([key, value]) => [key, value]));
+      const savedCount = values.streakCount;
+      const savedDate = values.streakLastDate;
+      const gamesDate = values.gamesCompletedDate;
+      const gamesList = values.gamesCompletedList;
+      const dismissDate = values.dismissedRemindersDate;
+      const dismissList = values.dismissedRemindersList;
+      const savedWeekly = values.weeklyHistory;
+      const savedLanguage = values.language;
+      const savedName = values.patientName;
+      const savedReminders = values.reminders;
+
+      if (savedLanguage) setLanguage(savedLanguage as Language);
+      if (savedName) setName(savedName);
+      if (savedReminders) {
+        try {
+          setReminders(JSON.parse(savedReminders));
+        } catch {
+          setReminders([]);
+        }
+      }
 
       // ── Streak ──
       const currentStreak = savedCount ? Number(savedCount) : 0;
       if (!savedDate) {
-        AsyncStorage.multiSet([['streakCount', '1'], ['streakLastDate', today]]);
+        multiSet([['streakCount', '1'], ['streakLastDate', today]]).catch(() => undefined);
         setStreak(1);
       } else if (savedDate === today) {
         setStreak(currentStreak);
@@ -115,7 +155,7 @@ export default function App() {
         const todayDate = new Date(today);
         const diffDays = Math.round((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
         const newStreak = diffDays === 1 ? currentStreak + 1 : 1;
-        AsyncStorage.multiSet([['streakCount', String(newStreak)], ['streakLastDate', today]]);
+        multiSet([['streakCount', String(newStreak)], ['streakLastDate', today]]).catch(() => undefined);
         setStreak(newStreak);
       }
 
@@ -123,7 +163,7 @@ export default function App() {
       if (gamesDate === today && gamesList) {
         setGamesCompleted(new Set(JSON.parse(gamesList)));
       } else {
-        AsyncStorage.multiSet([['gamesCompletedDate', today], ['gamesCompletedList', '[]']]);
+        multiSet([['gamesCompletedDate', today], ['gamesCompletedList', '[]']]).catch(() => undefined);
         setGamesCompleted(new Set());
       }
 
@@ -131,7 +171,7 @@ export default function App() {
       if (dismissDate === today && dismissList) {
         setDismissedReminders(new Set(JSON.parse(dismissList)));
       } else {
-        AsyncStorage.multiSet([['dismissedRemindersDate', today], ['dismissedRemindersList', '[]']]);
+        multiSet([['dismissedRemindersDate', today], ['dismissedRemindersList', '[]']]).catch(() => undefined);
         setDismissedReminders(new Set());
       }
 
@@ -144,19 +184,23 @@ export default function App() {
       const timeStr = `${h12}:${minutes} ${ampm}`;
       const activeStr = `Today at ${timeStr}`;
       setLastActive(activeStr);
-      AsyncStorage.setItem('lastActive', activeStr);
+      setItem('lastActive', activeStr).catch(() => undefined);
 
       // ── Weekly history ──
       const historyMap: Record<string, number> = savedWeekly ? JSON.parse(savedWeekly) : {};
-      // Today's count comes from gamesCompleted (resolved above)
       const todayCount = gamesDate === today && gamesList ? JSON.parse(gamesList).length : 0;
       historyMap[today] = todayCount;
-      // Trim keys older than 7 days to keep storage clean
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - 7);
       Object.keys(historyMap).forEach(k => { if (new Date(k) < cutoff) delete historyMap[k]; });
-      AsyncStorage.setItem('weeklyHistory', JSON.stringify(historyMap));
+      setItem('weeklyHistory', JSON.stringify(historyMap)).catch(() => undefined);
       setWeeklyHistory(buildWeek(historyMap));
+    }).catch(() => {
+      setStreak(1);
+      setGamesCompleted(new Set());
+      setDismissedReminders(new Set());
+      setLastActive('Today at 9:00 AM');
+      setWeeklyHistory(buildWeek({}));
     });
   }, []);
 
@@ -192,7 +236,7 @@ export default function App() {
       const next = new Set(prev);
       next.add(id);
       const today = new Date().toISOString().slice(0, 10);
-      AsyncStorage.multiSet([['dismissedRemindersDate', today], ['dismissedRemindersList', JSON.stringify([...next])]]);
+      multiSet([['dismissedRemindersDate', today], ['dismissedRemindersList', JSON.stringify([...next])]]).catch(() => undefined);
       return next;
     });
   };
@@ -209,13 +253,11 @@ export default function App() {
       const next = new Set(prev);
       next.add(gameId);
       const today = new Date().toISOString().slice(0, 10);
-      AsyncStorage.multiSet([['gamesCompletedDate', today], ['gamesCompletedList', JSON.stringify([...next])]]);
-      // Update weekly history with new count
-      AsyncStorage.getItem('weeklyHistory').then(saved => {
+      multiSet([['gamesCompletedDate', today], ['gamesCompletedList', JSON.stringify([...next])]]).catch(() => undefined);
+      getItem('weeklyHistory').then(saved => {
         const map: Record<string, number> = saved ? JSON.parse(saved) : {};
         map[today] = next.size;
-        AsyncStorage.setItem('weeklyHistory', JSON.stringify(map));
-        // Rebuild the 7-day window
+        setItem('weeklyHistory', JSON.stringify(map)).catch(() => undefined);
         const week: { date: string; count: number }[] = [];
         for (let i = 6; i >= 0; i--) {
           const d = new Date();
@@ -224,7 +266,7 @@ export default function App() {
           week.push({ date: key, count: map[key] ?? 0 });
         }
         setWeeklyHistory(week);
-      });
+      }).catch(() => undefined);
       return next;
     });
   };
@@ -234,7 +276,7 @@ export default function App() {
     setScreen(role === 'patient' ? 'name' : 'login');
   };
 
-  const chooseLanguage = (nextLanguage: string) => {
+  const chooseLanguage = (nextLanguage: Language) => {
     setLanguage(nextLanguage);
     setLanguagePickerOpen(false);
   };
@@ -263,7 +305,7 @@ export default function App() {
           ) : screen === 'welcome' ? (
           <WelcomeScreen name={name} onContinue={() => setScreen('home')} />
           ) : (
-          screen === 'home' ? <HomeScreen name={name} streak={streak} gamesCompleted={gamesCompleted.size} remindersSet={reminders.filter(r => dismissedReminders.has(r.id)).length} totalReminders={reminders.length} onGames={() => setScreen('games')} onMonitor={() => setScreen('monitor')} onVoice={() => setScreen('voice')} onRandomGame={launchRandomGame} nextReminder={getNextReminder()} onDismissReminder={dismissReminder} caregiverPhone="112" onLanguageChange={(lang) => setLanguage(lang as any)} /> :
+          screen === 'home' ? <HomeScreen name={name} streak={streak} gamesCompleted={gamesCompleted.size} remindersSet={reminders.filter(r => dismissedReminders.has(r.id)).length} totalReminders={reminders.length} onGames={() => setScreen('games')} onMonitor={() => setScreen('monitor')} onVoice={() => setScreen('voice')} onRandomGame={launchRandomGame} nextReminder={getNextReminder()} onDismissReminder={dismissReminder} caregiverPhone="112" onLanguageChange={(lang) => setLanguage(lang as Language)} /> :
           screen === 'games' ? <GamesScreen onHome={() => setScreen('home')} onMatchPairs={() => setScreen('matchPairs')} onMonitor={() => setScreen('monitor')} onPackYourBags={() => setScreen('packYourBags')} onTravelPattern={() => setScreen('travelGame')} onVoice={() => setScreen('voice')} onWatchTheTray={() => setScreen('watchTheTray')} onPeopleFace={() => setScreen('peopleFace')} /> :
           screen === 'voice' ? <VoiceScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onMonitor={() => setScreen('monitor')} streak={streak} gamesCompleted={gamesCompleted} reminders={reminders} setReminders={setReminders} dismissedReminders={dismissedReminders} patientName={name} /> :
           screen === 'monitor' ? <MonitorScreen onGames={() => setScreen('games')} onHome={() => setScreen('home')} onVoice={() => setScreen('voice')} reminders={reminders} setReminders={setReminders} gamesCompleted={gamesCompleted} streak={streak} lastActive={lastActive} weeklyHistory={weeklyHistory} remindersTotal={reminders.length} remindersDone={dismissedReminders.size} /> :
@@ -288,10 +330,10 @@ function MainScreenContent({
   chooseLanguage,
   chooseRole,
 }: {
-  language: string;
+  language: Language;
   languagePickerOpen: boolean;
   setLanguagePickerOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
-  chooseLanguage: (lang: string) => void;
+  chooseLanguage: (lang: Language) => void;
   chooseRole: (role: 'patient' | 'caregiver') => void;
 }) {
   const { t, fontMedium, fontBold, headingStyle } = useLanguage();
@@ -319,7 +361,7 @@ function MainScreenContent({
         </Pressable>
         {languagePickerOpen && (
           <View accessibilityRole="menu" style={styles.languageMenu}>
-            {['English', 'Hindi', 'Assamese', 'Bodo'].map((option) => (
+            {(['English', 'Hindi', 'Assamese', 'Bodo'] as const).map((option) => (
               <Pressable
                 key={option}
                 accessibilityRole="menuitem"

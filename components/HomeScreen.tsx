@@ -48,7 +48,7 @@ const NE_QUOTES = [
   },
 ];
 
-type SvgComponent = (props: SvgProps) => JSX.Element | null;
+type SvgComponent = (props: SvgProps) => React.ReactElement | null;
 
 function HomeIcon({ source, size }: { source: SvgComponent | { default: SvgComponent }; size: number }) {
   const SvgIcon = (source as any).default ?? source;
