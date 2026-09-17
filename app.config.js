@@ -22,6 +22,7 @@ module.exports = {
     plugins: [
       '@react-native-community/datetimepicker',
       'expo-speech-recognition',
+      'expo-sqlite',
       'expo-web-browser',
       [
         'expo-notifications',
